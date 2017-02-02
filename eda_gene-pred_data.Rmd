@@ -1,0 +1,79 @@
+---
+title: "eda_gene-pred_data.Rmd"
+author: "Jason Torres"
+date: "February 2, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("dplyr")
+
+serv.dir <- "/Users/jtorres/FUSE/"
+data.dir <- serv.dir %&% "projects/t2d-integration/gene-pred/data/"
+data.dir2 <- serv.dir %&% "reference/credible_sets/from_kyle/"
+data.files <- list.files(data.dir)
+
+```
+
+
+Read files as data.frames
+
+```{r}
+
+# credible set files
+df1 <- fread(data.dir2 %&% "1000.DIAGRAM.chr.txt"); dim(df1)
+df2 <- fread(data.dir2 %&% "metabochip.chr_added.txt"); dim(df2)
+# data files from gene-pred 
+cds.df <- fread(data.dir %&% "T2D-loci.CDS"); dim(cds.df)
+dhs.df <- fread(data.dir %&% "T2D-loci.DHS"); dim(dhs.df)
+dist.df <- fread(data.dir %&% "T2D-loci.dist-50kb"); dim(dist.df)
+# This data doesn't seem to be from the metabochip or 1000G DIAGRAM credible set data
+
+```
+
+
+Create data frame of all T2D loci and genes from input data files 
+
+```{r}
+
+locus1 <-  as.character(sapply(cds.df$V8, function(string){
+  gsub("LOCUS=","",strsplit(string,split=";")[[1]][4])
+}))
+genes1 <- cds.df$V13
+
+locus2 <-  as.character(sapply(dhs.df$V8, function(string){
+  gsub("LOCUS=","",strsplit(string,split=";")[[1]][4])
+}))
+genes2 <- dhs.df$V13
+
+locus3 <-  as.character(sapply(dist.df$V8, function(string){
+  gsub("LOCUS=","",strsplit(string,split=";")[[1]][4])
+}))
+genes3 <- dist.df$V12
+
+locus <- c(locus1,locus2,locus3)
+gene <- c(genes1,genes2,genes3)
+df <- data.frame(locus,gene,stringsAsFactors = FALSE)
+df <- df[!duplicated(df),]
+#names(df) <- c("locus","gene")
+
+str(df)
+length(unique(df$locus))
+length(unique(df$gene))
+
+write.table(df,file=data.dir %&% "loci_genes.txt",row.name=FALSE,sep="\t",quote=FALSE)
+
+```
+
+
+
+

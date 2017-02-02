@@ -1,0 +1,65 @@
+---
+title: "prepare_fGWAS-input_Gaulton2015.Rmd"
+author: "Jason Torres"
+date: "February 2, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Taking as input credible set files downloaded from DIAGRAM website (Accessed Feb.2,2017)
+**DIAGRAM_Gaulton_2015_CredibleSets**
+
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("dplyr")
+#library("ggplot2")
+
+serv.dir <- "/Users/jtorres/FUSE/"
+cred.dir <- serv.dir %&% "reference/diagram_public/DIAGRAM_Gaulton_2015_CredibleSets/"
+cred.files <- list.files(cred.dir)
+names(cred.files) <- 1:length(cred.files)
+
+
+```
+
+
+```{r}
+
+build_chunk <- function(refnum){
+  fname <- as.character(cred.files[refnum])
+  print(fname)
+  nam <- gsub("credset.","",fname)
+  nam <- gsub(".out","",nam)
+  df <- fread(cred.dir %&% fname)
+  df <- select(df, one_of("V1","V2","V3","V4"))
+  LNBF <- log(df$V4)
+  names(df) <- c("SNPID","CHR","POS","BF")
+  SEGNUMBER <- rep(refnum,dim(df)[1])
+  LOCUS <- rep(nam,dim(df)[1])
+  df <- cbind(df,LNBF,SEGNUMBER,LOCUS)
+  df$LOCUS <- as.character(df$LOCUS)
+  df <- arrange(df,POS)
+  return(df)
+}
+
+build_fgwas <- function(){
+  out.df <- c() 
+  for (i in as.integer(names(cred.files))){
+    df <- build_chunk(i)
+    out.df <- rbind(out.df,df)
+  }
+  out.df <- arrange(out.df, CHR, POS)
+  return(out.df)
+}
+
+t <- build_fgwas()
+
+```
+
+
