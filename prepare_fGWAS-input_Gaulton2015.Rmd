@@ -18,12 +18,16 @@ Taking as input credible set files downloaded from DIAGRAM website (Accessed Feb
 "%&%" <- function(a,b) paste0(a,b)
 library("data.table")
 library("dplyr")
+library(GenomicRanges)
 #library("ggplot2")
 
 serv.dir <- "/Users/jtorres/FUSE/"
 cred.dir <- serv.dir %&% "reference/diagram_public/DIAGRAM_Gaulton_2015_CredibleSets/"
 cred.files <- list.files(cred.dir)
 names(cred.files) <- 1:length(cred.files)
+
+bed.dir <- serv.dir %&% "reference/islet/"
+save.dir <- serv.dir %&% "projects/t2d-integration/fGWAS_files/gaulton2015/"
 
 
 ```
@@ -38,7 +42,9 @@ build_chunk <- function(refnum){
   nam <- gsub(".out","",nam)
   df <- fread(cred.dir %&% fname)
   df <- select(df, one_of("V1","V2","V3","V4"))
-  LNBF <- log(df$V4)
+  LNBF <- log(abs(as.numeric(df$V4))) # NOTE: There were 12 loci with negative BF values, 
+  # cannot take log of negative Bayes Factor, but fGWAS only will take LNBF so will 
+  # convert negative values to absolute values, will keep BF column to indicate direction of effect 
   names(df) <- c("SNPID","CHR","POS","BF")
   SEGNUMBER <- rep(refnum,dim(df)[1])
   LOCUS <- rep(nam,dim(df)[1])
@@ -48,18 +54,127 @@ build_chunk <- function(refnum){
   return(df)
 }
 
-build_fgwas <- function(){
+build_fgwas_core <- function(){
   out.df <- c() 
   for (i in as.integer(names(cred.files))){
     df <- build_chunk(i)
     out.df <- rbind(out.df,df)
   }
-  out.df <- arrange(out.df, CHR, POS)
+  out.df <- arrange(out.df, SEGNUMBER)
+  out.df$CHR  <- paste0("chr",as.character(out.df$CHR))
   return(out.df)
 }
 
-t <- build_fgwas()
+core.df <- build_fgwas_core()
 
 ```
+
+
+Functions for getting annotation columns from annotation files 
+
+```{r}
+
+
+g <- function(df){
+   if(length(df)==3){
+      gr <- with(df, GRanges(chr, IRanges(start, end)))
+   } else if (length(df)==4){
+      gr <- with(df, GRanges(chr, IRanges(start, end), id=id))
+   } else if (length(df)==5){
+      gr <- with(df, GRanges(chr, IRanges(start, end), id=id, score=score))
+   } else if (length(df)>=6){
+      df$strand <- gsub(pattern="[^+-]+",replacement='*', df$strand)
+      gr <- with(df, GRanges(chr, IRanges(start, end), id=id, score=score, strand=strand))
+   }
+   return(gr)
+}
+
+get_overlaps <- function(a,b){
+  # a and b are genomic ranges
+  val <- as.integer(a %over% b)
+  return(val)
+}
+
+
+
+get_annot <- function(core.df, annot.df, prefix){
+  pb <- txtProgressBar(min = 0, max = dim(core.df)[1], initial = 0, style = 3)
+  vec <- as.integer(sapply(1:dim(core.df)[1], function(i){
+    setTxtProgressBar(pb, i) #print(i) 
+    chr <- core.df$CHR[i]
+    pos <- core.df$POS[i]
+    snp.gr <- GRanges(chr,IRanges(pos, pos))
+    annot.gr <- g(annot.df)
+    value <- get_overlaps(snp.gr,annot.gr)
+    return(value)
+  }))
+  close(pb)
+  saveRDS(vec,file=save.dir%&%prefix%&%".RDS")
+  return(vec)
+}
+
+
+
+```
+
+
+
+
+## Islet ATAC-seq 
+
+Designate BED/annotation files and define function for adding annotation columnns to core.df 
+
+```{r}
+
+prepare_islet_atac <- function(){
+  atac.df <- fread(bed.dir %&% "islet_atac_peaks.bed")
+  names(atac.df) <- c("chr","start","end","id") 
+  atac.df$start <- atac.df$start+1
+  atac.df$end <- atac.df$end+1
+  return(atac.df)
+}
+
+atac.df <- prepare_islet_atac()
+
+islet_atac <- get_annot(core.df,atac.df, "islet_atac")
+df <- cbind(core.df,islet_atac)
+saveRDS(islet_atac,file=save.dir%&%"islet_atac.RDS")
+write.table(df,file=save.dir%&%"atac_only.txt",row.names=F,sep="\t",quote = F)
+
+
+```
+
+
+## Process Islet 15 chromatin state file 
+
+```{r}
+
+
+prepare_islet_chromHMM_15states <- function(){
+  chmm.df <- read.table(bed.dir %&% "Pancreat_islet_15_dense.reformatted_colours.bed", sep="\t",
+                      header=FALSE,stringsAsFactors = FALSE)
+  chmm.df <- select(chmm.df, one_of("V1","V2","V3","V4"))
+  names(chmm.df) <- c("chr","start","end","id") 
+  chmm.df$start <- chmm.df$start+1
+  chmm.df$end <- chmm.df$end+1
+  return(chmm.df)
+}
+
+annot_chrom_states <- function(){
+  chmm.df <- prepare_islet_chromHMM_15states()
+  for (i in 1:15){
+    pre <- "islet_state" %&% i
+    print(pre)
+    sub.df <- filter(chmm.df,id==i)
+    annot <- get_annot(core.df,sub.df, pre)    
+  }
+}
+
+annot_chrom_states()
+
+
+```
+
+
 
 
