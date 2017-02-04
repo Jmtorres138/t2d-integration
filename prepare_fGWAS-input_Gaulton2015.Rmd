@@ -162,7 +162,8 @@ prepare_islet_chromHMM_15states <- function(){
 
 annot_chrom_states <- function(){
   chmm.df <- prepare_islet_chromHMM_15states()
-  for (i in 1:15){
+  #for (i in 1:15){
+  for (i in 2:15){
     pre <- "islet_state" %&% i
     print(pre)
     sub.df <- filter(chmm.df,id==i)
