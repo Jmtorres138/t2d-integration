@@ -25,10 +25,12 @@ cred.dir <- gwas.dir %&% "credible_sets/"
 cred.files <- list.files(cred.dir)[grepl("_window.txt",list.files(cred.dir))]
 names(cred.files) <- 1:length(cred.files)
 
-#bed.dir <- serv.dir %&% "reference/islet/"
+bed.dir <- serv.dir %&% "reference/islet/"
+
 save.dir <- serv.dir %&% "projects/t2d-integration/fGWAS_files/diagram_1Kgenomes/"
 
-diag.df <- fread("cat " %&% gwas.dir %&% "DIAGRAM_T2D_1000G.2017.gz")
+diag.df <- fread("cat " %&% gwas.dir %&% "DIAGRAM_T2D_1000G_credSNPs.txt.gz" %&% " |  zmore")
+diag.df$MarkerName <- paste0("chr",diag.df$MarkerName)
 
 ```
 
@@ -43,9 +45,10 @@ build_chunk <- function(refnum){
   nam <- gsub("_",":",nam)
   nam <- paste0("chr",nam)
   df <- fread(cred.dir %&% fname)
-  
-  df <- select(df, one_of("chrpos_b37","n99"))
-  names(df) <- c("SNPID","SEGNUMBER")
+  df <- select(df, one_of("chrpos_b37","post_prob"))#,"n99"))
+  names(df) <- c("SNPID","PPA")#,"SEGNUMBER")
+  SEGNUMBER <- rep(refnum,dim(df)[1])
+  df <- cbind(df,SEGNUMBER)
   df$SNPID <- paste0("chr",df$SNPID)
   CHR <- as.character(sapply(df$SNPID,function(string){
      tmp <- strsplit(string,split=":")[[1]][1]
@@ -55,9 +58,23 @@ build_chunk <- function(refnum){
      tmp <- strsplit(string,split=":")[[1]][2]
      return(tmp)
   }))  
-  df <- data.frame(df$SNPID,CHR,POS,df$SEGNUMBER,stringsAsFactors=FALSE)
-  names(df) <- c("SNPID","CHR","POS","SEGNUMBER")
-
+  df <- data.frame(df$SNPID,CHR,POS,df$SEGNUMBER,df$PPA,stringsAsFactors=FALSE)
+  names(df) <- c("SNPID","CHR","POS","SEGNUMBER","PPA")
+  SE <- as.numeric(sapply(df$SNPID, function(snp){
+    temp.df <- filter(diag.df,MarkerName==snp)
+    return(temp.df$StdErr)
+  }))
+  P <- as.numeric(sapply(df$SNPID, function(snp){
+    temp.df <- filter(diag.df,MarkerName==snp)
+    return(temp.df$`P-value`)
+  }))
+  Z <- as.numeric(sapply(df$SNPID, function(snp){
+    temp.df <- filter(diag.df,MarkerName==snp)
+    z <- temp.df$Effect / temp.df$StdErr
+    return(z) 
+  }))
+  df <- cbind(df,Z,SE,P)
+  #P <- 2*(1-pnorm(abs(df$Effect/df$StdErr)))  
   df <- arrange(df,POS)
   return(df)
 }
@@ -69,7 +86,7 @@ build_fgwas_core <- function(){
     out.df <- rbind(out.df,df)
   }
   out.df <- arrange(out.df, SEGNUMBER)
-  out.df$CHR  <- paste0("chr",as.character(out.df$CHR))
+  saveRDS(out.df,file=save.dir%&%"diagram_1KGenomes_fGWAS-core.df.RDS")
   return(out.df)
 }
 
@@ -81,7 +98,6 @@ core.df <- build_fgwas_core()
 Functions for getting annotation columns from annotation files 
 
 ```{r}
-
 
 g <- function(df){
    if(length(df)==3){
@@ -104,11 +120,10 @@ get_overlaps <- function(a,b){
 }
 
 
-
 get_annot <- function(core.df, annot.df, prefix){
   pb <- txtProgressBar(min = 0, max = dim(core.df)[1], initial = 0, style = 3)
   vec <- as.integer(sapply(1:dim(core.df)[1], function(i){
-    setTxtProgressBar(pb, i) #print(i) 
+    setTxtProgressBar(pb, i) 
     chr <- core.df$CHR[i]
     pos <- core.df$POS[i]
     snp.gr <- GRanges(chr,IRanges(pos, pos))
@@ -123,4 +138,98 @@ get_annot <- function(core.df, annot.df, prefix){
 
 
 ```
+
+
+# Islet ATAC and Chromatin State Annotations 
+
+## Islet ATAC-seq 
+
+Designate BED/annotation files and define function for adding annotation columnns to core.df 
+
+```{r}
+
+prepare_islet_atac <- function(){
+  atac.df <- fread(bed.dir %&% "islet_atac_peaks.bed")
+  names(atac.df) <- c("chr","start","end","id") 
+  atac.df$start <- atac.df$start+1
+  atac.df$end <- atac.df$end+1
+  return(atac.df)
+}
+
+annot_islet_atac <- function(){
+  atac.df <- prepare_islet_atac()
+  islet_atac <- get_annot(core.df,atac.df, "islet_atac")
+  return(islet_atac)
+}
+
+#islet_atac <- annot_islet_atac()
+
+```
+
+
+## Process Islet 15 chromatin state file 
+
+```{r}
+
+
+prepare_islet_chromHMM_15states <- function(){
+  chmm.df <- read.table(bed.dir %&% "Pancreat_islet_15_dense.reformatted_colours.bed", sep="\t",
+                      header=FALSE,stringsAsFactors = FALSE)
+  chmm.df <- select(chmm.df, one_of("V1","V2","V3","V4"))
+  names(chmm.df) <- c("chr","start","end","id") 
+  chmm.df$start <- chmm.df$start+1
+  chmm.df$end <- chmm.df$end+1
+  return(chmm.df)
+}
+
+annot_chrom_states <- function(){
+  chmm.df <- prepare_islet_chromHMM_15states()
+  for (i in 1:15){
+    pre <- "islet_state" %&% i
+    print(pre)
+    sub.df <- filter(chmm.df,id==i)
+    annot <- get_annot(core.df,sub.df, pre)    
+  }
+}
+
+#annot_chrom_states()
+
+
+```
+
+
+# TxDb for genomic features 
+
+```{r}
+
+library("GenomicFeatures")
+library("TxDb.Hsapiens.UCSC.hg19.knownGene")
+txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene 
+head(seqlevels(txdb))
+#seqlevels(txdb) <- "chr1"
+#seqlevels(txdb) <- "chr1"
+columns(txdb)
+
+
+
+
+```
+
+
+
+# Annotation Hub 
+
+```{r}
+
+library(AnnotationHub)
+ah = AnnotationHub()
+unique(ah$dataprovider)
+unique(ah$species)[grepl("Homo",unique(ah$species))] # "Homo sapiens"
+dm <- query(ah, c("GRanges", "UCSC", "Homo sapiens"))
+df <- mcols(dm)
+
+
+```
+
+
 
