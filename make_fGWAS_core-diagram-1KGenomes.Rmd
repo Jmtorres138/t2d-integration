@@ -120,15 +120,19 @@ get_overlaps <- function(a,b){
 }
 
 
-get_annot <- function(core.df, annot.df, prefix){
+get_annot <- function(core.df, annot, prefix, annot.input.df=TRUE){
   pb <- txtProgressBar(min = 0, max = dim(core.df)[1], initial = 0, style = 3)
   vec <- as.integer(sapply(1:dim(core.df)[1], function(i){
     setTxtProgressBar(pb, i) 
     chr <- core.df$CHR[i]
     pos <- core.df$POS[i]
     snp.gr <- GRanges(chr,IRanges(pos, pos))
-    annot.gr <- g(annot.df)
-    value <- get_overlaps(snp.gr,annot.gr)
+    if (annot.input.df==TRUE){
+      annot.gr <- g(annot)
+      value <- get_overlaps(snp.gr,annot.gr)      
+    } else{
+      value <- get_overlaps(snp.gr,annot)      
+    }
     return(value)
   }))
   close(pb)
