@@ -211,10 +211,75 @@ library("TxDb.Hsapiens.UCSC.hg19.knownGene")
 txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene 
 head(seqlevels(txdb))
 #seqlevels(txdb) <- "chr1"
-#seqlevels(txdb) <- "chr1"
+#seqlevels(txdb) <- seqlevels0(txdb)
 columns(txdb)
+#methods(class="TxDb")
+
+# Coding sequence hg 19 
+
+annot_cds <- function(){
+  cds.gr <- cds(txdb)
+  get_annot(core.df,cds.gr, "cds", annot.input.df = FALSE)
+}
+
+annot_transcript <- function(){
+  trans.gr <- transcripts(txdb)
+  get_annot(core.df,trans.gr, "transcript", annot.input.df = FALSE)
+}
+
+annot_exon <- function(){
+  exon.gr <- exons(txdb)
+  get_annot(core.df,exon.gr, "exon", annot.input.df = FALSE)
+}
+
+annot_intron <- function(){
+  intron.gr <- unlist(intronsByTranscript(txdb))
+  get_annot(core.df,intron.gr, "intron", annot.input.df = FALSE)
+}
+
+annot_5utr <- function(){
+  utr5.gr <- unlist(fiveUTRsByTranscript(txdb))
+  get_annot(core.df,utr5.gr, "utr_5", annot.input.df = FALSE)
+}
+
+annot_3utr <- function(){
+  utr3.gr <- unlist(threeUTRsByTranscript(txdb))
+  get_annot(core.df,utr3.gr, "utr_3", annot.input.df = FALSE)
+}
+
+annot_promoters <- function(){
+  prom.gr <- promoters(txdb)
+  get_annot(core.df,prom.gr, "promoter", annot.input.df = FALSE)
+}
+
+annot_microRNAs <- function(){
+  library("mirbase.db")
+  mic.gr <- microRNAs(txdb)
+  get_annot(core.df,mic.gr, "micro_rna", annot.input.df = FALSE)
+}
+
+annot_dist_tss <- function(core.df,prefix){
+  print("Getting Distance to Nearest TSS for each SNP")
+  chr <- core.df$CHR
+  pos <- core.df$POS
+  snp.gr <- GRanges(chr,IRanges(pos, pos))
+  trans <- transcripts(txdb)
+  tss <- resize(trans, width=1, fix='start') # get TSS from transcripts 
+  dist <- distanceToNearest(x=snp.gr,subject=tss)
+  vec <- elementMetadata(dist)$distance
+  saveRDS(vec,file=save.dir%&%prefix%&%".RDS")
+}
 
 
+annot_cds()
+annot_transcript()
+annot_exon() 
+annot_intron()
+annot_5utr()
+annot_3utr()
+annot_promoters()
+annot_microRNAs()
+annot_dist_tss(core.df,"distance_tss")
 
 
 ```
@@ -227,13 +292,81 @@ columns(txdb)
 
 library(AnnotationHub)
 ah = AnnotationHub()
-unique(ah$dataprovider)
-unique(ah$species)[grepl("Homo",unique(ah$species))] # "Homo sapiens"
-dm <- query(ah, c("GRanges", "UCSC", "Homo sapiens"))
-df <- mcols(dm)
-
+#unique(ah$dataprovider)
+#unique(ah$species)[grepl("Homo",unique(ah$species))] # "Homo sapiens"
+#dm <- query(ah, c("GRanges", "UCSC", "Homo sapiens"))
+#df <- mcols(dm)
+#dm["AH5012"] # look at annotation summary
+#dm[["AH5012"]] # download annotation 
 
 ```
 
+## Epigenome RoadMap, adult pancreas and muscle DHS Narrow Peaks (mac2) 
+
+```{r}
+
+epiFiles <- query(ah, c("GRanges","EpigenomeRoadMap","Homo sapiens"))
+df <- mcols(epiFiles)
+unique(epiFiles$species)
+unique(epiFiles$genome)
+table(epiFiles$sourcetype)
+sort(table(epiFiles$description), decreasing=TRUE)
+
+dhs <- query(ah , c("EpigenomeRoadMap", "GRanges", "Narrow DNasePeaks for consolidated epigenomes from EpigenomeRoadMap Project"))
+#"Broad domains on enrichment for DNase-seq for consolidated epigenomes from EpigenomeRoadMap Project"
+dhs.df <- mcols(dhs)
+brain <- query(dhs,"Brain"); mcols(brain)$tags
+mus <- query(dhs,"Muscle"); mcols(mus)$tags
+panc <- query(dhs,"Pancreas"); mcols(panc)$tags
+
+panc_macs2.gr <- dhs[["AH30612"]]  # E098-DNase.macs2.narrowPeak.gz
+muc_macs2.gr <- dhs[["AH30627"]] #  E100-DNase.macs2.narrowPeak.gz 
+
+annot_annhub <- function(annhub, ahid, prefix){
+  anno.gr <- annhub[[ahid]]
+  get_annot(core.df, anno.gr, prefix, annot.input.df = FALSE)
+  return("Complete")
+}
+
+annot_annhub(dhs,"AH30612","dhs_pancreas")
+annot_annhub(dhs,"AH30627","dhs_muscle_psoas")
+
+```
+
+
+
+# Build Input fGWAS file from RDS files (created above) 
+
+```{r}
+
+
+
+build_fgwas_file <- function(){
+  library("gtools")
+  rds.files <- list.files(save.dir)[grepl(".RDS",list.files(save.dir))]
+  core.file <- rds.files[grepl("core",rds.files)]
+  rds.files <- rds.files[!grepl("core",rds.files)]  
+  genomic <- rds.files[!grepl("islet|dhs",rds.files)]
+  dhs <- rds.files[grepl("dhs",rds.files)]
+  islet <- mixedsort(rds.files[grepl("islet",rds.files)])
+  rds.files <- c(genomic,dhs,islet)
+  df <- readRDS(save.dir%&%core.file)
+  out.df <- df
+  for (f in rds.files){
+    name <- gsub(".RDS","",f)
+    print(name)
+    vec <- readRDS(save.dir%&%f)
+    out.df <- cbind(out.df,vec)
+    names(out.df)[length(names(out.df))] <- name
+  }
+  gz <- gzfile(save.dir%&%"fgwas_input27.txt.gz", "w")
+  write.table(out.df, gz,row.names=F,sep="\t",quote = F)
+  close(gz)
+  return(out.df) 
+}
+
+fgwas.df <- build_fgwas_file()
+
+```
 
 
