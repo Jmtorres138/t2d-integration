@@ -340,7 +340,6 @@ annot_annhub(dhs,"AH30627","dhs_muscle_psoas")
 ```{r}
 
 
-
 build_fgwas_file <- function(){
   library("gtools")
   rds.files <- list.files(save.dir)[grepl(".RDS",list.files(save.dir))]
@@ -351,7 +350,11 @@ build_fgwas_file <- function(){
   islet <- mixedsort(rds.files[grepl("islet",rds.files)])
   rds.files <- c(genomic,dhs,islet)
   df <- readRDS(save.dir%&%core.file)
-  out.df <- df
+  NCASE <- rep(NA,dim(df)[1])
+  NCONTROL <- rep(NA,dim(df)[1])
+
+  F <- rep(NA,dim(df)[1])
+  out.df <- cbind(df,NCASE,NCONTROL,F)
   for (f in rds.files){
     name <- gsub(".RDS","",f)
     print(name)
@@ -360,12 +363,18 @@ build_fgwas_file <- function(){
     names(out.df)[length(names(out.df))] <- name
   }
   gz <- gzfile(save.dir%&%"fgwas_input27.txt.gz", "w")
-  write.table(out.df, gz,row.names=F,sep="\t",quote = F)
+  write.table(out.df, gz,row.names=FALSE,sep="\t",quote = FALSE)
   close(gz)
   return(out.df) 
 }
 
 fgwas.df <- build_fgwas_file()
+
+X <- as.matrix(fgwas.df[,(dim(fgwas.df)[2]-26):(dim(fgwas.df)[2])])
+cs <- colSums(X)
+order(cs)
+rev(cs[order(cs)])
+
 
 ```
 
