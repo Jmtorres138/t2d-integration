@@ -255,3 +255,20 @@ Note: that limiting to only islet eQTLs considerably reduced the number of genes
 However of the `r length(filter(sub,change>0)$V2)` out of `r length(sub$V2)` genes (29/38), the support increased 
 
 
+
+Trying to make sense of Kyle's previous scripts 
+```{r}
+
+filter(k1.df,V2=="TCF7L2")
+#      V1     V2        V3
+#TCF7L2 TCF7L2 0.1795167
+filter(k2.df,V2=="TCF7L2")
+#      V1     V2        V3
+# TCF7L2 TCF7L2 0.2110376
+filter(a.df,V2=="TCF7L2")
+#      V1     V2     V3 V4    V5
+#TCF7L2 TCF7L2 0.5901  1 0.795
+
+```
+
+
