@@ -1,0 +1,257 @@
+---
+title: "devel.Rmd"
+author: "Jason Torres"
+date: "February 7, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("dplyr")
+library("ggplot2")
+
+serv.dir <- "/Users/jtorres/FUSE/"
+proj.dir <- serv.dir %&% "projects/t2d-integration/"
+local.dir <- "/Users/jtorres/Google Drive/Science/Projects/T2D-Integration/"
+# fGWAS input 
+in.file <- proj.dir %&% "fGWAS_files/diagram_1Kgenomes/fgwas_input27.txt.gz"
+# fGWAS out 
+out.file <- proj.dir %&% "fGWAS_files/diagram_1Kgenomes/fgwas_out/islet_atac+transcript+islet_state8+islet_state1-p0.10.bfs.gz"
+fig.dir <- proj.dir %&% "figures/"
+dir.create(fig.dir,showWarnings = FALSE)
+
+```
+
+
+Compare significance (PPA) before and after fGWAS 
+
+```{r}
+df1 <- fread("cat " %&% in.file %&% " | zmore") %>%  dplyr::select(one_of("SNPID","CHR","POS","SEGNUMBER","PPA"))
+df2 <- fread("cat " %&% out.file %&% " | zmore") %>% dplyr::select(one_of("id","PPA"))
+names(df2) <- c("SNPID","PPA.fgwas")
+df <- inner_join(df1,df2,by="SNPID")
+df <- df[!duplicated(df),]
+df <- mutate(df, change=PPA.fgwas-PPA) %>% arrange(desc(change))
+
+check <- as.numeric(sapply(unique(df$SEGNUMBER), function(i){
+  vec <- filter(df,SEGNUMBER==i)$PPA.fgwas
+  return(sum(vec))
+}))
+names(check) <- unique(df$SEGNUMBER)
+issue_segs <- names(which(check>1.05))
+keep_segs <- setdiff(unique(df$SEGNUMBER),issue_segs)
+
+
+plt <- ggplot(data=df,aes(x=PPA,y=PPA.fgwas-PPA)) + geom_point() +
+  geom_hline(yintercept=0)#; plt
+
+plt <- ggplot(data=filter(df, SEGNUMBER %in% keep_segs),aes(x=PPA,y=PPA.fgwas-PPA)) + 
+  geom_point(aes(fill=(PPA.fgwas-PPA)>0),shape=21,color="black",size=2) +
+  geom_hline(yintercept=0) + theme_bw() + ggtitle("Change in PPA following fGWAS") +
+  ylim(c(-1,1)) + 
+  scale_fill_manual(values=c("dodgerblue1","firebrick1")) +
+  theme(legend.position = "none"); plt
+ggsave(fig.dir%&%"fgwas_ppa_compare.pdf",plt)
+#ggsave("~/Downloads/fgwas_ppa_compare.png",plt)
+
+eval.df=filter(df, SEGNUMBER %in% keep_segs)
+
+segplot <- function(segnum){
+  plt <- ggplot(data=filter(df,SEGNUMBER==segnum),aes(x=PPA,y=PPA.fgwas-PPA)) + 
+    geom_point(aes(fill=(PPA.fgwas-PPA)>0),shape=21,color="black",size=3) +
+    geom_hline(yintercept=0) + theme_bw() + 
+    ylim(c(-1,1)) + 
+    scale_fill_manual(values=c("dodgerblue1","firebrick1")) +
+    theme(legend.position = "none") + 
+    ggtitle("Locus: " %&% segnum); plt  
+}
+
+segplot(segnum=80)
+#ggsave("~/Downloads/fgwas_ppa_compare_80.png",segplot(segnum=80))
+
+sum((df$PPA.fgwas-df$PPA)>0)
+sum((df$PPA.fgwas-df$PPA)>0) / dim(df)[1]
+
+
+```
+
+
+Percentage of SNPs with increased PPA from fGWAS: `r sum((df$PPA.fgwas-df$PPA)>0) / dim(df)[1]`
+
+
+# Kyle variant-to-gene linking file 
+
+```{r}
+k1file <- proj.dir %&% "gene-pred/output-files/output_file1-2"
+k1.df <- fread(k1file)
+k2file <- proj.dir %&% "gene-pred/output-files/output_file2-2"
+k2.df <- fread(k2file)
+
+loci.genes <- unique(k1.df$V1)
+genes.df <- dplyr::select(k1.df,one_of("V1","V2"))
+genes.df <- genes.df[!duplicated(genes.df),]
+
+test <- as.character(sapply(loci.genes, function(g){
+  gs <- filter(genes.df,V1==g)$V2
+  gs <- paste(gs,collapse=",")
+}))
+
+
+```
+
+
+Islet eQTL annotations 
+
+
+```{r}
+
+eqtl.file <- serv.dir%&%"reference/islet/eqtls/from_anthony/fdr05_cis_eQTL_genelevel.txt.gz"
+key.file <- serv.dir%&%"reference/islet/eqtls/from_anthony/snp_keyfile.txt.gz"
+e.df <- fread("cat " %&% eqtl.file %&% " | zmore")
+key.df <- fread("cat " %&% key.file %&% " | zmore")
+key.df$POS <- gsub("29683808_G/A","29683808",key.df$POS)
+key.df$POS <- as.integer(key.df$POS)
+names(e.df) <- c("RSID","ENSID","Beta","T","P","Q")
+e.df <- inner_join(e.df,key.df,by="RSID")
+e.df <- e.df[!duplicated(e.df),]
+source("https://bioconductor.org/biocLite.R")
+biocLite("EnsDb.Hsapiens.v75")
+library("EnsDb.Hsapiens.v75")
+ensref.df <- data.frame(genes(EnsDb.Hsapiens.v75)$gene_id,
+                        genes(EnsDb.Hsapiens.v75)$gene_name,
+                        stringsAsFactors = FALSE)
+names(ensref.df) <- c("ENSID","GENE")
+
+ensid2gene <- function(){
+  pb <- txtProgressBar(min = 0, max = dim(e.df)[1], initial = 0, style = 3)
+  GENE <- as.character(sapply(1:length(e.df$ENSID), function(i){
+    setTxtProgressBar(pb, i) 
+    e <- e.df$ENSID[i]
+    name <- strsplit(x=e,split=".",fixed=TRUE)[[1]][1]
+    gene <- filter(ensref.df,ENSID==name)$GENE
+    #print(paste(name,":",gene))
+    return(gene)
+  }))
+  close(pb)
+  return(GENE)
+}
+
+GENE <- ensid2gene()
+e.df <- cbind(e.df,GENE); e.df$GENE <- as.character(e.df$GENE)
+
+SNPID <- as.character(sapply(1:length(e.df$CHR),function(i){
+  s <- paste(e.df$CHR[i],e.df$POS[i],sep=":")
+  return(s)
+}))
+e.df <- cbind(e.df,SNPID)  
+e.df$SNPID <- as.character(e.df$SNPID)
+
+# Note this function below is too slow for large queries but
+# can be useful for small queries 
+#add_chr_pos <- function(){
+#  library(biomaRt) # biomaRt_2.30.0
+#  grch37_snp = useMart(biomart="ENSEMBL_MART_SNP", host="grch37.ensembl.org",
+#                      dataset="hsapiens_snp")
+#  SNPS = e.df$RSID
+#  snp_attributes = c("refsnp_id", "chr_name", "chrom_start")
+#  out.df <- c()
+#  pb <- txtProgressBar(min = 0, max = length(SNPS), initial = 0, style = 3)
+#  for (i in 1:length(SNPS)){
+#    setTxtProgressBar(pb, i) 
+#    snp <- SNPS[i]
+#    snp_locations = getBM(attributes=snp_attributes, filters="snp_filter", 
+#                        values=snp, mart=grch37_snp) 
+#    out.df <- rbind(out.df,snp_locations)
+#  }
+#  close(pb)
+#  names(out.df) <- c("RSID","CHR","POS")
+#  return(out.df)
+##chrpos.df <- add_chr_pos() # Too Slow 
+##chrpos.df = getBM(attributes=snp_attributes, filters="snp_filter", 
+##                      values=SNPS, mart=grch37_snp) 
+#}
+
+
+
+```
+
+
+# Build integration file 
+
+```{r}
+
+eqtl.df <- filter(e.df,e.df$SNPID %in% df$SNPID)
+
+build_file <- function(){
+  out.df <- c()
+  for (lg in loci.genes){
+      gvec <- filter(genes.df,V1==lg)$V2
+      for (g in gvec){
+        if (g %in% unique(eqtl.df$GENE)){
+          print(g)
+          temp.df <- filter(eqtl.df,GENE==g) %>% arrange(Q)
+          snp <- temp.df$SNPID[1]
+          temp.df <- filter(df,SNPID==snp) %>% arrange(desc(PPA.fgwas))
+          ppa <- temp.df$PPA.fgwas[1]
+          row.df <- c(lg,g,ppa)
+          out.df <- rbind(out.df,row.df)
+        }
+      }
+  }
+  out.df <- as.data.frame(out.df,stringsAsFactors=TRUE)
+  write.table(out.df,file=proj.dir%&%"alt_output2-2",sep="\t",
+              row.names=F,col.names=F,quote = F)
+  write.table(out.df,file=local.dir%&%"alt_output2-2",sep="\t",
+              row.names=F,col.names=F,quote = F)
+}
+
+build_file()
+
+```
+
+
+Now run the merge perl script with output1-2 and alt_output2-2 in local directory 
+
+```{bash} 
+
+perl merge output_file1-2 alt_output_2-2 > alt_merged.output 
+
+```
+
+and compare..
+
+```{r}
+
+j.df <- fread(local.dir%&%"gene-pred/alt_output2-2")
+a.df <- fread(local.dir%&%"gene-pred/output-files/merged.output")
+b.df <- fread(local.dir%&%"gene-pred/alt_merged.output")
+
+evalg <- function(gene){
+  print(filter(k2.df,V2==gene))
+  print(filter(a.df,V2==gene))
+  print(filter(j.df,V2==gene))
+  print(filter(b.df,V2==gene))
+}
+
+t <- inner_join(a.df,b.df,by="V2")
+t <- t[!duplicated(t),]
+sub <- t[(t$V1.x==t$V1.y),]
+plot(1:dim(sub)[1], (sub$V4.y-sub$V4.x))
+abline(h=0)
+sub <- mutate(sub,change=(V4.y-V4.x))
+length(filter(sub,change>0)$V2)
+filter(sub,change>0)$V2
+
+
+```
+
+Note: that limiting to only islet eQTLs considerably reduced the number of genes carried forward 
+However of the `r length(filter(sub,change>0)$V2)` out of `r length(sub$V2)` genes (29/38), the support increased 
+
+
