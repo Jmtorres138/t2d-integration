@@ -41,6 +41,7 @@ build_chunk <- function(refnum){
   fname <- as.character(cred.files[refnum])
   print(fname)
   nam <- gsub("Credset_99_1000G__","",fname)
+  nam <- gsub("Credset_99_1000G_","",fname)
   nam <- gsub("_201015_LD_window.txt","",nam)
   nam <- gsub("_",":",nam)
   nam <- paste0("chr",nam)
@@ -73,7 +74,8 @@ build_chunk <- function(refnum){
     z <- temp.df$Effect / temp.df$StdErr
     return(z) 
   }))
-  df <- cbind(df,Z,SE,P)
+  LEADSNP <- rep(nam,dim(df)[1])
+  df <- cbind(df,Z,SE,P,LEADSNP)
   #P <- 2*(1-pnorm(abs(df$Effect/df$StdErr)))  
   df <- arrange(df,POS)
   return(df)
@@ -86,7 +88,9 @@ build_fgwas_core <- function(){
     out.df <- rbind(out.df,df)
   }
   out.df <- arrange(out.df, SEGNUMBER)
-  saveRDS(out.df,file=save.dir%&%"diagram_1KGenomes_fGWAS-core.df.RDS")
+  out.df$LEADSNP <- as.character(out.df$LEADSNP)
+  out.df$LEADSNP <- gsub("chr:","chr",out.df$LEADSNP)
+  saveRDS(out.df,file=save.dir%&%"diagram_1KGenomes_fGWAS-core.v2.df.RDS")
   return(out.df)
 }
 
