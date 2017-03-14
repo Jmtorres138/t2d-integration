@@ -21,13 +21,14 @@ library(GenomicRanges)
 
 serv.dir <- "/Users/jtorres/FUSE/"
 gwas.dir <- serv.dir %&% "reference/gwas/diagram_1Kgenomes/"
-cred.dir <- gwas.dir %&% "credible_sets/"
-cred.files <- list.files(cred.dir)[grepl("_window.txt",list.files(cred.dir))]
+cred.dir <- gwas.dir %&% "DIAGRAM_T2D_Metabochip_1000G_CredibleSets_Gaulton_2015/"
+cred.files <- list.files(cred.dir)[grepl(".out",list.files(cred.dir))]
 names(cred.files) <- 1:length(cred.files)
 
 bed.dir <- serv.dir %&% "reference/islet/"
 
-save.dir <- serv.dir %&% "projects/t2d-integration/fGWAS_files/diagram_1Kgenomes/"
+save.dir <- serv.dir %&% "projects/t2d-integration/fgwas/metabochip/intermediate_files/"
+rds.dir <- serv.dir %&% "projects/t2d-integration/fgwas/metabochip/rds/"
 
 diag.df <- fread("cat " %&% gwas.dir %&% "DIAGRAM_T2D_1000G_credSNPs.txt.gz" %&% " |  zmore")
 diag.df$MarkerName <- paste0("chr",diag.df$MarkerName)
@@ -40,43 +41,19 @@ diag.df$MarkerName <- paste0("chr",diag.df$MarkerName)
 build_chunk <- function(refnum){
   fname <- as.character(cred.files[refnum])
   print(fname)
-  nam <- gsub("Credset_99_1000G__","",fname)
-  nam <- gsub("Credset_99_1000G_","",fname)
-  nam <- gsub("_201015_LD_window.txt","",nam)
-  nam <- gsub("_",":",nam)
-  nam <- paste0("chr",nam)
   df <- fread(cred.dir %&% fname)
-  df <- select(df, one_of("chrpos_b37","post_prob"))#,"n99"))
-  names(df) <- c("SNPID","PPA")#,"SEGNUMBER")
+  names(df) <- c("RSID","CHR","POS","BF","PPA","P")
+  df$CHR <- paste0("chr",df$CHR)
+  df$LNBF <- log(df$BF)
   SEGNUMBER <- rep(refnum,dim(df)[1])
   df <- cbind(df,SEGNUMBER)
-  df$SNPID <- paste0("chr",df$SNPID)
-  CHR <- as.character(sapply(df$SNPID,function(string){
-     tmp <- strsplit(string,split=":")[[1]][1]
-     return(tmp)
-  }))
-  POS <- as.integer(sapply(df$SNPID,function(string){
-     tmp <- strsplit(string,split=":")[[1]][2]
-     return(tmp)
-  }))  
-  df <- data.frame(df$SNPID,CHR,POS,df$SEGNUMBER,df$PPA,stringsAsFactors=FALSE)
-  names(df) <- c("SNPID","CHR","POS","SEGNUMBER","PPA")
-  SE <- as.numeric(sapply(df$SNPID, function(snp){
-    temp.df <- filter(diag.df,MarkerName==snp)
-    return(temp.df$StdErr)
-  }))
-  P <- as.numeric(sapply(df$SNPID, function(snp){
-    temp.df <- filter(diag.df,MarkerName==snp)
-    return(temp.df$`P-value`)
-  }))
-  Z <- as.numeric(sapply(df$SNPID, function(snp){
-    temp.df <- filter(diag.df,MarkerName==snp)
-    z <- temp.df$Effect / temp.df$StdErr
-    return(z) 
-  }))
-  LEADSNP <- rep(nam,dim(df)[1])
-  df <- cbind(df,Z,SE,P,LEADSNP)
-  #P <- 2*(1-pnorm(abs(df$Effect/df$StdErr)))  
+  df$SNPID <- df$CHR %&% ":" %&% df$POS
+  NCASE <- rep(27206,length(df$P))
+  NCONTROL <- rep(57574 ,length(df$P))
+  SE <- rep(NA,length(df$P))
+  Z <- rep(NA,length(df$P))
+  df <- cbind(select(df,one_of("SNPID","CHR","POS","RSID",
+                               "SEGNUMBER","PPA","BF","LNBF")),Z,SE,NCASE,NCONTROL)
   df <- arrange(df,POS)
   return(df)
 }
@@ -88,9 +65,9 @@ build_fgwas_core <- function(){
     out.df <- rbind(out.df,df)
   }
   out.df <- arrange(out.df, SEGNUMBER)
-  out.df$LEADSNP <- as.character(out.df$LEADSNP)
-  out.df$LEADSNP <- gsub("chr:","chr",out.df$LEADSNP)
-  saveRDS(out.df,file=save.dir%&%"diagram_1KGenomes_fGWAS-core.v2.df.RDS")
+  saveRDS(out.df,file=rds.dir%&%"metabo-fgwas-core.df.RDS")
+  write.table(x=out.df,file=save.dir%&%"metabo-fgwas-core.txt",
+              sep="\t",quote=F,row.names=F)
   return(out.df)
 }
 
