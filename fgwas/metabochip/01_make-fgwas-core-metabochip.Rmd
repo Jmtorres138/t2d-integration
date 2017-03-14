@@ -1,0 +1,77 @@
+---
+title: "make_fGWAS-input_diagram-1KGenomes.Rmd"
+author: "Jason Torres"
+date: "February 4, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Taking as input credible set files from Anubha's DIAGRAM (1K Genomes-imputed) anaylsis (Accessed Feb.4,2017)
+
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("dplyr")
+library(GenomicRanges)
+
+serv.dir <- "/Users/jtorres/FUSE/"
+gwas.dir <- serv.dir %&% "reference/gwas/diagram_1Kgenomes/"
+cred.dir <- gwas.dir %&% "DIAGRAM_T2D_Metabochip_1000G_CredibleSets_Gaulton_2015/"
+cred.files <- list.files(cred.dir)[grepl(".out",list.files(cred.dir))]
+names(cred.files) <- 1:length(cred.files)
+
+bed.dir <- serv.dir %&% "reference/islet/"
+
+save.dir <- serv.dir %&% "projects/t2d-integration/fgwas/metabochip/intermediate_files/"
+rds.dir <- serv.dir %&% "projects/t2d-integration/fgwas/metabochip/rds/"
+
+diag.df <- fread("cat " %&% gwas.dir %&% "DIAGRAM_T2D_1000G_credSNPs.txt.gz" %&% " |  zmore")
+diag.df$MarkerName <- paste0("chr",diag.df$MarkerName)
+
+```
+
+
+```{r}
+
+build_chunk <- function(refnum){
+  fname <- as.character(cred.files[refnum])
+  print(fname)
+  df <- fread(cred.dir %&% fname)
+  names(df) <- c("RSID","CHR","POS","BF","PPA","P")
+  df$CHR <- paste0("chr",df$CHR)
+  df$LNBF <- log(df$BF)
+  SEGNUMBER <- rep(refnum,dim(df)[1])
+  df <- cbind(df,SEGNUMBER)
+  df$SNPID <- df$CHR %&% ":" %&% df$POS
+  NCASE <- rep(27206,length(df$P))
+  NCONTROL <- rep(57574 ,length(df$P))
+  SE <- rep(NA,length(df$P))
+  Z <- rep(NA,length(df$P))
+  df <- cbind(select(df,one_of("SNPID","CHR","POS","RSID",
+                               "SEGNUMBER","PPA","BF","LNBF")),Z,SE,NCASE,NCONTROL)
+  df <- arrange(df,POS)
+  return(df)
+}
+
+build_fgwas_core <- function(){
+  out.df <- c() 
+  for (i in as.integer(names(cred.files))){
+    df <- build_chunk(i)
+    out.df <- rbind(out.df,df)
+  }
+  out.df <- arrange(out.df, SEGNUMBER)
+  saveRDS(out.df,file=rds.dir%&%"metabo-fgwas-core.df.RDS")
+  write.table(x=out.df,file=save.dir%&%"metabo-fgwas-core.txt",
+              sep="\t",quote=F,row.names=F)
+  return(out.df)
+}
+
+core.df <- build_fgwas_core()
+
+```
+

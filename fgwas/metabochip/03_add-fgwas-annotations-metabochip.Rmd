@@ -30,48 +30,7 @@ bed.dir <- serv.dir %&% "reference/islet/"
 save.dir <- serv.dir %&% "projects/t2d-integration/fgwas/metabochip/intermediate_files/"
 rds.dir <- serv.dir %&% "projects/t2d-integration/fgwas/metabochip/rds/"
 
-diag.df <- fread("cat " %&% gwas.dir %&% "DIAGRAM_T2D_1000G_credSNPs.txt.gz" %&% " |  zmore")
-diag.df$MarkerName <- paste0("chr",diag.df$MarkerName)
-
-```
-
-
-```{r}
-
-build_chunk <- function(refnum){
-  fname <- as.character(cred.files[refnum])
-  print(fname)
-  df <- fread(cred.dir %&% fname)
-  names(df) <- c("RSID","CHR","POS","BF","PPA","P")
-  df$CHR <- paste0("chr",df$CHR)
-  df$LNBF <- log(df$BF)
-  SEGNUMBER <- rep(refnum,dim(df)[1])
-  df <- cbind(df,SEGNUMBER)
-  df$SNPID <- df$CHR %&% ":" %&% df$POS
-  NCASE <- rep(27206,length(df$P))
-  NCONTROL <- rep(57574 ,length(df$P))
-  SE <- rep(NA,length(df$P))
-  Z <- rep(NA,length(df$P))
-  df <- cbind(select(df,one_of("SNPID","CHR","POS","RSID",
-                               "SEGNUMBER","PPA","BF","LNBF")),Z,SE,NCASE,NCONTROL)
-  df <- arrange(df,POS)
-  return(df)
-}
-
-build_fgwas_core <- function(){
-  out.df <- c() 
-  for (i in as.integer(names(cred.files))){
-    df <- build_chunk(i)
-    out.df <- rbind(out.df,df)
-  }
-  out.df <- arrange(out.df, SEGNUMBER)
-  saveRDS(out.df,file=rds.dir%&%"metabo-fgwas-core.df.RDS")
-  write.table(x=out.df,file=save.dir%&%"metabo-fgwas-core.txt",
-              sep="\t",quote=F,row.names=F)
-  return(out.df)
-}
-
-core.df <- build_fgwas_core()
+core.df <- readRDS(rds.dir%&%"metabo-fgwas-core.df.RDS")
 
 ```
 
@@ -147,7 +106,7 @@ annot_islet_atac <- function(){
   return(islet_atac)
 }
 
-#islet_atac <- annot_islet_atac()
+islet_atac <- annot_islet_atac()
 
 ```
 
@@ -177,7 +136,7 @@ annot_chrom_states <- function(){
   }
 }
 
-#annot_chrom_states()
+annot_chrom_states()
 
 
 ```
