@@ -54,7 +54,7 @@ get_annot <- function(core.df, annot, prefix, annot.input.df=TRUE){
     return(value)
   }))
   close(pb)
-  saveRDS(vec,file=save.dir%&%prefix%&%".RDS")
+  saveRDS(vec,file=rds.dir%&%prefix%&%".RDS")
   return(vec)
 }
 
