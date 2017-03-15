@@ -50,10 +50,11 @@ build_chunk <- function(refnum){
   df$SNPID <- df$CHR %&% ":" %&% df$POS
   NCASE <- rep(27206,length(df$P))
   NCONTROL <- rep(57574 ,length(df$P))
+  F <- rep(NA,length(df$P))
   SE <- rep(NA,length(df$P))
   Z <- rep(NA,length(df$P))
   df <- cbind(select(df,one_of("SNPID","CHR","POS","RSID",
-                               "SEGNUMBER","PPA","BF","LNBF")),Z,SE,NCASE,NCONTROL)
+                               "SEGNUMBER","PPA","BF","LNBF")),Z,SE,NCASE,NCONTROL,F)
   df <- arrange(df,POS)
   return(df)
 }
