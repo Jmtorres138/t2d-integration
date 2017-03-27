@@ -76,7 +76,7 @@ annot_islet_atac <- function(){
   return(islet_atac)
 }
 
-islet_atac <- annot_islet_atac()
+#islet_atac <- annot_islet_atac()
 
 
 ## Process Islet 15 chromatin state file 
@@ -102,7 +102,7 @@ annot_chrom_states <- function(){
   }
 }
 
-annot_chrom_states()
+#annot_chrom_states()
 
 # TxDb for genomic features 
 
@@ -118,7 +118,7 @@ columns(txdb)
 
 annot_cds <- function(){
   cds.gr <- cds(txdb)
-  get_annot(core.df,cds.gr, "cds", annot.input.df = FALSE)
+  #get_annot(core.df,cds.gr, "cds", annot.input.df = FALSE)
 }
 
 annot_transcript <- function(){
@@ -170,14 +170,14 @@ annot_dist_tss <- function(core.df,prefix){
 }
 
 
-annot_cds()
-annot_transcript()
-annot_exon() 
-annot_intron()
-annot_5utr()
-annot_3utr()
-annot_promoters()
-annot_microRNAs()
+#annot_cds()
+#annot_transcript()
+#annot_exon() 
+#annot_intron()
+#annot_5utr()
+#annot_3utr()
+#annot_promoters()
+#annot_microRNAs()
 annot_dist_tss(core.df,"distance_tss")
 
 # Annotation Hub 
