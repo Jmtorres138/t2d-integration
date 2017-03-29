@@ -13,6 +13,8 @@ if (!grepl("chr", mychrom)) {
   mychrom <- "chr" %&% mychrom
 }
 
+mypart <- commandArgs(trailingOnly = TRUE)[2]
+
 #cred.dir <- gwas.dir %&% "DIAGRAM_T2D_Metabochip_1000G_CredibleSets_Gaulton_2015/"
 #cred.files <- list.files(cred.dir)[grepl(".out",list.files(cred.dir))]
 #names(cred.files) <- 1:length(cred.files)
@@ -22,10 +24,8 @@ bed.dir <- serv.dir %&% "reference/islet/"
 save.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_1kG_gwas/intermediate_files/"
 rds.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_1kG_gwas/rds/"
 
-fname <- save.dir %&% mychrom %&% ".fgwas-core.txt.gz"
+fname <- save.dir %&% mychrom %&% ".p" %&% mypart %&% ".fgwas-core.txt.gz"
 core.df <- fread("cat " %&% fname %&% " | zmore")
-
-#core.df <- readRDS(rds.dir%&%"metabo-fgwas-core.df.RDS")
 
 g <- function(df){
   if(length(df)==3){
@@ -51,30 +51,30 @@ get_overlaps <- function(a,b){
 get_annot <- function(core.df, annot, prefix, annot.input.df=TRUE){
   pb <- txtProgressBar(min = 0, max = dim(core.df)[1], initial = 0, style = 3)
   vec <- as.integer(sapply(1:dim(core.df)[1], function(i){
-    setTxtProgressBar(pb, i) 
+    setTxtProgressBar(pb, i)
     chr <- core.df$CHR[i]
     pos <- core.df$POS[i]
     snp.gr <- GRanges(chr,IRanges(pos, pos))
     if (annot.input.df==TRUE){
       annot.gr <- g(annot)
-      value <- get_overlaps(snp.gr,annot.gr)      
+      value <- get_overlaps(snp.gr,annot.gr)
     } else{
-      value <- get_overlaps(snp.gr,annot)      
+      value <- get_overlaps(snp.gr,annot)
     }
     return(value)
   }))
   close(pb)
-  saveRDS(vec,file=rds.dir%&%mychrom%&%"_"%&%prefix%&%".RDS")
+  saveRDS(vec,file=rds.dir%&%mychrom%&%"_"%&%mypart%&%"_"%&%prefix%&%".RDS")
   return(vec)
 }
 
-# Islet ATAC and Chromatin State Annotations 
+# Islet ATAC and Chromatin State Annotations
 
-## Islet ATAC-seq 
+## Islet ATAC-seq
 
 prepare_islet_atac <- function(){
   atac.df <- fread(bed.dir %&% "islet_atac_peaks.bed")
-  names(atac.df) <- c("chr","start","end","id") 
+  names(atac.df) <- c("chr","start","end","id")
   atac.df$start <- atac.df$start+1
   atac.df$end <- atac.df$end+1
   return(atac.df)
@@ -86,17 +86,17 @@ annot_islet_atac <- function(){
   return(islet_atac)
 }
 
-#islet_atac <- annot_islet_atac()
+islet_atac <- annot_islet_atac()
 
 
-## Process Islet 15 chromatin state file 
+## Process Islet 15 chromatin state file
 
 
 prepare_islet_chromHMM_15states <- function(){
   chmm.df <- read.table(bed.dir %&% "Pancreat_islet_15_dense.reformatted_colours.bed", sep="\t",
                         header=FALSE,stringsAsFactors = FALSE)
   chmm.df <- select(chmm.df, one_of("V1","V2","V3","V4"))
-  names(chmm.df) <- c("chr","start","end","id") 
+  names(chmm.df) <- c("chr","start","end","id")
   chmm.df$start <- chmm.df$start+1
   chmm.df$end <- chmm.df$end+1
   return(chmm.df)
@@ -108,23 +108,23 @@ annot_chrom_states <- function(){
     pre <- "islet_state" %&% i
     print(pre)
     sub.df <- filter(chmm.df,id==i)
-    annot <- get_annot(core.df,sub.df, pre)    
+    annot <- get_annot(core.df,sub.df, pre)
   }
 }
 
-#annot_chrom_states()
+annot_chrom_states()
 
-# TxDb for genomic features 
+# TxDb for genomic features
 
 
 library("GenomicFeatures")
 library("TxDb.Hsapiens.UCSC.hg19.knownGene")
-txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene 
+txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene
 head(seqlevels(txdb))
 
 columns(txdb)
 
-# Coding sequence hg 19 
+# Coding sequence hg 19
 
 annot_cds <- function(){
   cds.gr <- cds(txdb)
@@ -173,29 +173,30 @@ annot_dist_tss <- function(core.df,prefix){
   pos <- core.df$POS
   snp.gr <- GRanges(chr,IRanges(pos, pos))
   trans <- transcripts(txdb)
-  tss <- resize(trans, width=1, fix='start') # get TSS from transcripts 
+  tss <- resize(trans, width=1, fix='start') # get TSS from transcripts
   dist <- distanceToNearest(x=snp.gr,subject=tss)
   vec <- elementMetadata(dist)$distance
-  saveRDS(vec,file=save.dir%&%prefix%&%".RDS")
+  #saveRDS(vec,file=save.dir%&%prefix%&%".RDS")
+  saveRDS(vec,file=rds.dir%&%mychrom%&%"_"%&%mypart%&%"_"%&%prefix%&%".RDS")
 }
 
 
 annot_cds()
 annot_transcript()
-annot_exon() 
+annot_exon()
 annot_intron()
 annot_5utr()
 annot_3utr()
 annot_promoters()
-#annot_microRNAs()
+##annot_microRNAs()
 annot_dist_tss(core.df,"distance_tss")
 
-## Annotation Hub 
+## Annotation Hub
 
 #library(AnnotationHub)
 #ah = AnnotationHub()
 
-## Epigenome RoadMap, adult pancreas and muscle DHS Narrow Peaks (mac2) 
+## Epigenome RoadMap, adult pancreas and muscle DHS Narrow Peaks (mac2)
 
 #epiFiles <- query(ah, c("GRanges","EpigenomeRoadMap","Homo sapiens"))
 #df <- mcols(epiFiles)
@@ -212,7 +213,7 @@ annot_dist_tss(core.df,"distance_tss")
 #panc <- query(dhs,"Pancreas"); mcols(panc)$tags
 
 #panc_macs2.gr <- dhs[["AH30612"]]  # E098-DNase.macs2.narrowPeak.gz
-#muc_macs2.gr <- dhs[["AH30627"]] #  E100-DNase.macs2.narrowPeak.gz 
+#muc_macs2.gr <- dhs[["AH30627"]] #  E100-DNase.macs2.narrowPeak.gz
 
 #annot_annhub <- function(annhub, ahid, prefix){
 #  anno.gr <- annhub[[ahid]]
@@ -222,4 +223,3 @@ annot_dist_tss(core.df,"distance_tss")
 
 #annot_annhub(dhs,"AH30612","dhs_pancreas")
 #annot_annhub(dhs,"AH30627","dhs_muscle_psoas")
-
