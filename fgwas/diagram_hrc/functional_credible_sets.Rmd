@@ -27,6 +27,8 @@ serv.dir <- "/Users/jtorres/FUSE/"
 work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/"
 fgwas.output.dir <- work.dir %&% "fgwas_output/"
 
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/credible_sets/"
+
 pre <- fgwas.output.dir %&% "drop-islet_state11+islet_state6+islet_state12+utr_5+" %&%
   "islet_stretch_enhancer+promoter+distance_tss+islet_state9"
 
@@ -115,6 +117,7 @@ get_credsets <- function(probthresh){
 cred95.df <- get_credsets(0.95)
 cred99.df <- get_credsets(0.99)
 
+
 ```
 
 # Get nearest genes 
@@ -159,6 +162,12 @@ annot_refGene <- function(cred.df){
 }
 cred95.df <- annot_refGene(cred95.df)
 cred99.df <- annot_refGene(cred99.df)
+
+write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95_cum90.txt",sep="\t",
+            quote=FALSE,row.names=F)
+
+write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90.txt",sep="\t",
+            quote=FALSE,row.names=F)
 
 ```
 
