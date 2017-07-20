@@ -20,16 +20,15 @@ library("gridExtra")
 
 serv.dir <- "/Users/jtorres/FUSE/"
 fgwas.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/"
+fgwas.out.dir <- fgwas.dir %&% "fgwas_output/"
 
-# Best model from fgwas run 
-pre <- fgwas.dir %&% "fgwas_output/" %&%  "drop-islet_state11+islet_state6+islet_state12+utr_5+" %&%
-  "islet_stretch_enhancer+promoter+distance_tss+islet_state9"
+
 
 ```
 
+# Processing function 
 
 ```{r}
-
 
 annot_process <- function(fname){
   df <- fread(fname)
@@ -37,6 +36,61 @@ annot_process <- function(fname){
   df$CI_hi <- gsub(">","",df$CI_hi); df$CI_hi <- gsub("fail",NA,df$CI_hi); df$CI_hi <- as.numeric(df$CI_hi)
   return(df)
 }
+
+```
+
+# Individual Analyses 
+
+```{r}
+
+
+build_param_df <- function(name.vec=NULL){
+  files <- list.files(fgwas.out.dir)
+  param.files <- files[grepl(".params",files,fixed=TRUE)]
+  param.files <- param.files[!grepl("+",param.files,fixed=TRUE)]
+  param.files <- param.files[!grepl("drop",param.files,fixed=TRUE)]  
+  out.df <- c()
+  for (f in param.files){
+    stack.df <- annot_process(fgwas.out.dir%&%f)
+    out.df <- rbind(out.df,stack.df)
+  }
+  out.df <- filter(out.df,parameter!="pi_region")
+  out.df <- arrange(out.df,desc(estimate))
+  enriched <- filter(out.df, CI_lo>0,estimate>0,CI_hi>0)
+  depleted <- filter(out.df, CI_lo<0,estimate<0,CI_hi<0)
+  print("There are " %&% dim(out.df)[1] %&% " annotations")
+  print("There are " %&% dim(enriched)[1] %&% " annotations that are marginally ENRICHED")
+  print("There are " %&% dim(depleted)[1] %&% " annotations that are marginally DEPLETED")
+  out.df <- rbind(enriched,depleted)
+  if (!is.null(name.vec)){
+    out.df$parameter<-name.vec
+  }
+  return(out.df)
+}
+
+
+build_param_best_df <- function(pre,name.vec=NULL){
+  # Note: pre is best model from fgwas run 
+  # Example: 
+    #pre <- fgwas.out.dir %&% "drop-islet_state11+islet_state6+islet_state12+utr_5+" %&%
+    #"islet_stretch_enhancer+promoter+distance_tss+islet_state9"
+  param.df <- annot_process(pre %&% ".params")
+  param.df <- arrange(param.df,desc(estimate))
+  param.df <- filter(param.df,parameter!="pi")
+  param.df <- filter(param.df,parameter!="pi_region")
+
+  if (!is.null(name.vec)){
+    param.df$parameter<-name.vec
+  }
+  return(param.df)
+}
+
+```
+
+
+# Annotation plot 
+
+```{r}
 
 
 an_plot <- function(mydf,mytitl="",mylow=-10,myhigh=10,interval=1){
@@ -63,20 +117,27 @@ an_plot <- function(mydf,mytitl="",mylow=-10,myhigh=10,interval=1){
 
 ```
 
-# Generate plot 
+# Generate plot 1 : Individual annotations that individually meet marginal significance (confidence intervals not overlapping zero) 
 
 ```{r}
 
-param.df <- annot_process(pre %&% ".params")
-# Optional manual adjustment 
-param.df$parameter <- c("pi","Islet ATAC","Islet Strong Act. Enh.",
-                           "CDS","Islet Low DNA Meth.","Islet Heterochrom.",
-                           "Islet Polycomb. Rep.")
+param.sing.df <- build_param_df()
+plt1 <- an_plot(param.sing.df,mytitl="DIAGRAM (HRC Imputation): Seperate Analysis",mylow=-5,myhigh=5,interval=1)
+ggsave(filename=fgwas.dir %&% "DIAGRAM-gwas" %&% ".fgwas_enrich.seperate.png",plot=plt1,width=6,height=6)
 
-param.df <- arrange(param.df,desc(estimate))
-param.df <- filter(param.df,parameter!="pi")
-
-pltA <- an_plot(param.df,mytitl="DIAGRAM (HRC Imputation)", mylow=-5,myhigh=5,interval=1)
-ggsave(filename=fgwas.dir %&% "DIAGRAM-gwas" %&% ".fgwas_enrich.png",plot=pltA,width=6,height=6)
 ```
+
+# Generate plot 2 : Joint analysis of annotations in the 'Best' model 
+
+```{r}
+mypre <- fgwas.out.dir %&% "drop-islet_state11+islet_state6+islet_state12+utr_5+" %&%
+                                   "islet_stretch_enhancer+promoter+distance_tss+islet_state9"
+param.df <- build_param_best_df(mypre,name.vec=c("Coding","Islet ATAC", "Islet Strong Enhancer",
+                                                 "Islet Low DNA. Meth.","Islet Heterochrom.",
+                                                 "Islet Polycomb. Rep."))
+plt2 <- an_plot(param.df,mytitl="DIAGRAM (HRC Imputation): Joint Analysis",mylow=-5,myhigh=5,interval=1)
+ggsave(filename=fgwas.dir %&% "DIAGRAM-gwas" %&% ".fgwas_enrich.joint.png",plot=plt2,width=6,height=6)
+
+```
+
 
