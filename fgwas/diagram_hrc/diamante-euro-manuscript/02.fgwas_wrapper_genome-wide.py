@@ -2,7 +2,7 @@
 # Jason Matthew Torres
 '''
 Run fGWAS across annotations
-Usage: python fgwas_wrapper_genome-wide.py
+Usage: python 02.fgwas_wrapper_genome-wide.py
 '''
 # libraries
 import sys,os,gzip
