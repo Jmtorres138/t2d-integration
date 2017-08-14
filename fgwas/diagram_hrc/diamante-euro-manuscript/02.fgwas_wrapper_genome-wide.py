@@ -29,7 +29,7 @@ if os.path.isdir(job_dir)==False:
 if os.path.isdir(log_dir)==False:
     os.mkdir(log_dir)
 start_index = 9 #0-based index of column in fgwas input file where annotations start
-
+job_prefix = "job_"
 
 def step1():
     '''
@@ -334,7 +334,7 @@ def step5(model_list,best_p,best_llk,best_dropped_mod="NA",previously_dropped=[]
                             "-o", out_dir+"drop-"+dropped+mod]
         command = " ".join(command_list)
         script='''
-#$ -N job_drop-%s
+#$ -N %sdrop-%s
 #$ -pe shmem 1
 #$ -P mccarthy.prjc
 #$ -q %s
@@ -343,7 +343,7 @@ def step5(model_list,best_p,best_llk,best_dropped_mod="NA",previously_dropped=[]
 echo "start time" `date`
 %s
 echo "end time" `date`
-        ''' % (dropped+mod, qc, log_dir,"job_drop-"+dropped+mod,
+        ''' % (job_prefix,dropped+mod, qc, log_dir,"job_drop-"+dropped+mod,
         log_dir,"job_drop-"+dropped+mod, command)
         fout.write(script)
         fout.close()
@@ -355,7 +355,7 @@ echo "end time" `date`
             sp.check_call(call)
     job_list = moniter_rescomp_jobs.get_job_ids("job_")
     moniter_rescomp_jobs.wait_for_jobs(job_list)
-    print "The best likelihood in full model: %s" % str(best_llk)
+    print "The best likelihood value to beat: %s" % str(best_llk)
     track_dic = {}
     for mod in model_list:
         fin = open(out_dir+"drop-"+dropped+mod+".ridgeparams",'r')
@@ -378,12 +378,13 @@ echo "end time" `date`
         print ("Best dropped llk: %s" % best_dropped_llk)
         print ("Annotations to keep: %s" % ",".join(report_list))
         status_complete = False
-        return best_dropped_mod,best_dropped_llk, report_list, status_complete
+        best_llk = best_dropped_llk
+        return best_dropped_mod,best_dropped_llk, report_list, best_llk, status_complete
     except:
         print ("Dropping models didn't improve cross-validated likelihood")
         print ("Keep the current model!")
         status_complete = True
-        return best_dropped_mod,False,model_list, status_complete
+        return best_dropped_mod,False,model_list, best_llk, status_complete
 
 
 def wrapper():
@@ -417,11 +418,11 @@ def wrapper():
 
     sys.stdout.write("Step 5: Test dropping annotations from the model and evaluating cross-valitated likelihood\n")
     dropped_mods = []
-    mod,llk,keep,status = step5(model_list,best_p,best_llk,previously_dropped=[])
+    mod,llk,keep,best_llk,status = step5(model_list,best_p,best_llk,previously_dropped=[])
     dropped_mods.append(mod)
     while status == False:
         model_list.remove(mod)
-        mod,llk,keep,status = step5(model_list,best_p,best_llk,previously_dropped=dropped_mods)
+        mod,llk,keep,best_llk,status = step5(model_list,best_p,best_llk,previously_dropped=dropped_mods)
         dropped_mods.append(mod)
 
     sys.stdout.write("Step 6: Determine the best cross-validated model\n")
