@@ -31,6 +31,7 @@ if os.path.isdir(log_dir)==False:
 start_index = 9 #0-based index of column in fgwas input file where annotations start
 job_prefix = "adi_"
 
+
 def step1():
     '''
     Start index is the first index for an annotation in the file
