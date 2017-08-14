@@ -12,7 +12,7 @@ import time
 from select import select
 from math import ceil
 from math import floor
-
+import moniter_rescomp_jobs
 
 # globals
 fgwas = "/users/mccarthy/jmtorres/software/fgwas-0.3.6/bin/fgwas"
@@ -24,18 +24,17 @@ job_dir=home_dir+"jobs/"
 log_dir=home_dir+"logs/"
 if os.path.isdir(out_dir)==False:
     os.mkdir(out_dir)
+start_index = 10 #0-based index of column in fgwas input file where annotations start
 
-def step1(start_index=10):
+def step1():
     '''
     Start index is the first index for an annotation in the file
     Here, the start index is 10 (column 11)
     '''
-    print("Running each annotation separately....")
     fin = gzip.open(input_file,'rb')
     annot_list = fin.readline().strip().split()[start_index:]
     fin.close()
     for annot in annot_list:
-        print annot
         job_file = job_dir+"job_"+annot+".sh"
         fout=open(job_file,'w')
         if annot == "distance_tss":
@@ -59,14 +58,38 @@ def step1(start_index=10):
         fout.write(script)
         fout.close()
         call = ["qsub", job_file]
-        sp.check_call(call)
-    raw_input('Press enter to continue when jobs are complete: ')
+        out_path = out_dir+annot+".llk"
+        if os.path.exists(out_path) == False:
+            sp.check_call(call)
+        if os.path.exists(out_path) == True and os.stat(out_path).st_size == 0:
+            sp.check_call(call)
+    job_list = moniter_rescomp_jobs.get_job_ids("job_")
+    moniter_rescomp_jobs.wait_for_jobs(job_list)
 
-def step2(start_index=10,first_go=True):
-    print("Finding annotation with highest model likelihood..")
+def sig_annot_list():
     fin1 = gzip.open(input_file,'rb')
     annot_list = fin1.readline().strip().split()[start_index:]
     fin1.close()
+    sig_list = []
+    for annot in annot_list:
+        f = out_dir+annot+".params"
+        fin=open(f,'r')
+        fin.readline() # header
+        fin.readline() # pi_region
+        l = fin.readline().strip().split() # annotation param val list
+        aname, ci_low, est, ci_hi = l[0],l[1],l[2],l[3]
+        try:
+            if (float(ci_hi.replace(">","")) > 0 and float(ci_low.replace("<","")) < 0) != True:
+                sig_list.append(annot)
+        except:
+            print ("Annotation Failed: %s" % annot)
+        fin.close()
+    print sig_list
+    return(sig_list)
+
+def step2(sig_list):
+    print("Finding annotation with highest model likelihood..")
+    annot_list = sig_list
     track_dic = {}
     for annot in annot_list:
         f = out_dir+annot+".llk"
@@ -78,15 +101,18 @@ def step2(start_index=10,first_go=True):
         ##fin.readline()
         ##l = fin.readline().strip().split()
         fin.close()
-        if l[0]=="ln(lk):":
+        try:
+            if l[0]=="ln(lk):":
         #if l[0]=="AIC:":
-            track_dic[annot] = float(l[1])
+                track_dic[annot] = float(l[1])
+        except:
+            print f
     sorted_annot = sorted(track_dic.items(),key=operator.itemgetter(1))
     sorted_annot.reverse() # use for ln(lk)
     top_annot = sorted_annot[0][0]
     top_val = sorted_annot[0][1]
-    print "Top annotation: %s ; ln(lk): %f" % (top_annot, top_val)
-    #print "Top annotation: %s ; AIC: %f" % (top_annot, top_val)
+    #print "Top annotation: %s ; ln(lk): %f" % (top_annot, top_val)
+    ##print "Top annotation: %s ; AIC: %f" % (top_annot, top_val)
     for annot in sorted_annot[1:]:
         annot = annot[0]
         #print annot
@@ -115,15 +141,19 @@ def step2(start_index=10,first_go=True):
         fout.write(script)
         fout.close()
         call = ["qsub", job_file]
-        if first_go==True:
-            sp.check_call(call) # Run this only on the first attempt
-    if first_go==True:
-        raw_input('Press enter to continue when jobs are complete: ')
+        out_path = out_dir+top_annot+"+"+annot+".llk"
+        if os.path.exists(out_path) == False:
+            sp.check_call(call)
+        if os.path.exists(out_path) == True and os.stat(out_path).st_size == 0:
+            sp.check_call(call)
+    job_list = moniter_rescomp_jobs.get_job_ids("job_")
+    moniter_rescomp_jobs.wait_for_jobs(job_list)
     top = [top_annot,top_val]
     return(top)
 
+
 def run_models(fixed_list,eval_list):
-    print "Fixed annotations: " + ", ".join(fixed_list)
+    #print "Fixed annotations: " + ", ".join(fixed_list)
     fixed_name = "-".join(fixed_list)
     fixed = "+".join(fixed_list)
     for annot in eval_list:
@@ -134,7 +164,6 @@ def run_models(fixed_list,eval_list):
                             "-dists", annot+":"+home_dir+"dist_model",
                             "-w", fixed, "-o", out_dir+fixed+"+"+annot]
         elif "distance_tss" in fixed_list:
-            #print True
             temp_list = list(fixed_list)
             temp_list.remove("distance_tss")
             fixed_sub = "+".join(temp_list)
@@ -144,7 +173,6 @@ def run_models(fixed_list,eval_list):
         else:
             command_list = [fgwas, "-i", input_file, "-cc", "-w",
                             fixed+"+"+annot, "-o", out_dir+fixed+"+"+annot]
-        #print command_list
         command = " ".join(command_list)
         script='''
 #$ -N job_%s
@@ -161,23 +189,22 @@ def run_models(fixed_list,eval_list):
         fout.write(script)
         fout.close()
         call = ["qsub", job_file]
-        sp.check_call(call)
+        out_path = out_dir+fixed+"+"+annot+".llk"
+        if os.path.exists(out_path) == False:
+            sp.check_call(call)
+        if os.path.exists(out_path) == True and os.stat(out_path).st_size == 0:
+            sp.check_call(call)
 
 
-def step3(top_annot, top_val,start_index=10,first_pass=True):
-    fin1 = gzip.open(input_file,'rb')
-    annot_list = fin1.readline().strip().split()[start_index:]
-    fin1.close()
+def step3(top_annot, top_val,sig_list):
 
-    print top_annot,top_val
+    annot_list = sig_list
     top_annot_list = top_annot.split("+")
     annot_list = [x for x in annot_list if x not in top_annot_list]
     out_list = [top_annot+"+"+ x for x in annot_list]
-    if first_pass == True:
-        run_models(top_annot_list,annot_list)
-
-    raw_input('Press enter to continue when jobs are complete: ')
-
+    run_models(top_annot_list,annot_list)
+    job_list = moniter_rescomp_jobs.get_job_ids("job_")
+    moniter_rescomp_jobs.wait_for_jobs(job_list)
     track_dic = {}
     for name in out_list:
         f = out_dir+name+".llk"
@@ -191,42 +218,44 @@ def step3(top_annot, top_val,start_index=10,first_pass=True):
             track_dic[name] = float(l[1])
     sorted_annot = sorted(track_dic.items(),key=operator.itemgetter(1))
     sorted_annot.reverse() #used when comparing ln(lk)
-    print str(top_val) #+ " : " + str(floor(top_val))
+    #print str(top_val) #+ " : " + str(floor(top_val))
     ## Next line(s) used for comparing ln(lk)
-    sig_list = [x for x in sorted_annot if float(x[1]) > float(top_val)]
+    sig_annot_list = [x for x in sorted_annot if float(x[1]) > float(top_val)]
     #sig_list = [x for x in sorted_annot if float(x[1]) > ceil(float(top_val))]
     ## Next line used for comparing AIC, comment out if unecessary
     #sig_list = [x for x in sorted_annot if float(x[1]) < floor(float(top_val))]
     #sig_list = [x for x in sorted_annot if float(x[1]) < float(top_val)]
 
-    print sig_list
-    print len(sig_list)
-    print sig_list[0]
-    return sig_list[0]
+    #print sig_annot_list
+    #print len(sig_annot_list)
+    if len(sig_annot_list) > 0:
+        return [sig_annot_list[0], len(sig_annot_list)]
+    else:
+        return [top_annot, len(sig_annot_list)]
 
 
-def step4(model_list,first_go=True):
+
+def step4(model_list):
     print "Finding the penalty with the best cross-validation likelihood..."
-    p_list = ["0.05","0.10","0.15","0.20","0.25","0.30","0.35","0.40","0.45","0.50"]
+    p_list = ["0.05","0.10","0.15","0.20","0.25","0.30","0.35","0.40","0.45","0.50",
+              "0.55","0.60","0.65","0.70","0.75","0.80","0.85","0.90","0.95","1.0"]
     model_name = "-".join(model_list)
     model = "+".join(model_list)
     for p in p_list:
         job_file = job_dir+"job_"+model_name+"-"+p+".sh"
         fout=open(job_file,'w')
         if "distance_tss" in model_list:
-            #print True
             temp_list = list(model_list)
             temp_list.remove("distance_tss")
             model_sub = "+".join(temp_list)
             command_list = [fgwas, "-i", input_file, "-cc",
                             "-dists", "distance_tss"+":"+home_dir+"dist_model",
-                            "-w", model_sub, "-p", p, "-xv", "-print",
+                            "-w", model_sub, "-p", p, "-xv", "-print", "-onlyp",
                             "-o", out_dir+model+"-p"+p]
         else:
             command_list = [fgwas, "-i", input_file, "-cc",  "-w",
-                            model, "-p", p, "-xv", "-print",
+                            model, "-p", p, "-xv", "-print", "-onlyp",
                             "-o", out_dir+model+"-p"+p]
-        #print command_list
         command = " ".join(command_list)
         script='''
 #$ -N job_%s
@@ -243,10 +272,13 @@ def step4(model_list,first_go=True):
         fout.write(script)
         fout.close()
         call = ["qsub", job_file]
-        if first_go==True:
+        out_path = out_dir+model+"-p"+p+".ridgeparams" # try onlyp for comparison
+        if os.path.exists(out_path) == False:
             sp.check_call(call)
-    if first_go==True:
-        raw_input('Press enter to continue when jobs are complete: ')
+        if os.path.exists(out_path) == True and os.stat(out_path).st_size == 0:
+            sp.check_call(call)
+    job_list = moniter_rescomp_jobs.get_job_ids("job_")
+    moniter_rescomp_jobs.wait_for_jobs(job_list)
     print "Finding best parameter value..."
     track_dic = {}
     for p in p_list:
@@ -263,111 +295,60 @@ def step4(model_list,first_go=True):
     print "Optimal parameter value evaluated: %s"   % best[0]
     return best
 
-
-def step5_6(model_list,best_p,best_llk,first_go=True):
+def step5(model_list,best_p,best_llk,best_dropped_mod="NA",previously_dropped=[]):
     print "Test dropping each annotation from the model, using cross-validation likelihood"
     print "Keep dropping annotations as long as the cross-validation likelihood keeps increasing"
-    for mod in model_list:
-        job_file = job_dir+"job_drop-"+mod+".sh"
-        fout=open(job_file,'w')
-        if "distance_tss" in model_list:
-            #print True
-            temp_list = list(model_list)
-            temp_list.remove("distance_tss")
-            model_sub = "+".join(temp_list)
-            command_list = [fgwas, "-i", input_file, "-cc",
-                            "-dists", "distance_tss"+":"+home_dir+"dist_model",
-                            "-p", best_p, "-xv", "-print",
-                            "-o", out_dir+"drop-"+mod]
-        else:
-            command_list = [fgwas, "-i", input_file, "-cc",
-                            "-w", mod, "-p", best_p, "-xv", "-print",
-                            "-o", out_dir+"drop-"+mod]
-        #print command_list
-        command = " ".join(command_list)
-        script='''
-#$ -N job_drop-%s
-#$ -pe shmem 1
-#$ -P mccarthy.prjc
-#$ -q short.qc
-#$ -e %s%s.error
-#$ -o %s%s.out
-#$ -V
-
-%s
-        ''' % (mod, log_dir,"job_drop-"+mod,
-        log_dir,"job_drop-"+mod, command)
-        fout.write(script)
-        fout.close()
-        call = ["qsub", job_file]
-        if first_go==True:
-            sp.check_call(call)
-    if first_go==True:
-        raw_input('Press enter to continue when jobs are complete: ')
-    print "The best likelihood in full model: %s" % str(best_llk)
-    track_dic = {}
-    for mod in model_list:
-        fin = open(out_dir+"drop-"+mod+".ridgeparams",'r')
-        line_list = fin.readlines()
-        fin.close()
-        line = line_list[-1]
-        llk = line.strip().split()[-1]
-        track_dic[mod]=llk
-        print (mod + ": " + str(llk))
-    sorted_mods = sorted(track_dic.items(),key=operator.itemgetter(1))
-    sorted_mods.reverse() #used when comparing ln(lk)
-    check_list = [x for x in sorted_mods if float(x[1]) > float(best_llk)]
-    print check_list
-
-def step5_6_sequential(model_list,best_p,best_llk,first_go=True):
-    print "Test dropping each annotation from the model, using cross-validation likelihood"
-    print "Keep dropping annotations as long as the cross-validation likelihood keeps increasing"
+    if len(previously_dropped) > 0:
+        dropped = "+".join(previously_dropped) + "+"
+    else:
+        dropped = ""
     for mod in model_list:
         keep_list = list(model_list)
         dropped_mod = mod
         keep_list.remove(mod)
         keep_mods = "+".join(keep_list)
-        job_file = job_dir+"job_drop-"+mod+".sh"
+        #job_file = job_dir+"job_drop-"+mod+".sh"
+        job_file = job_dir+"job_drop-"+dropped+mod+".sh"
         fout=open(job_file,'w')
         if "distance_tss" in keep_list:
-            #print True
-            #temp_list = list(model_list)
             keep_list.remove("distance_tss")
             model_sub = "+".join(keep_list)
             command_list = [fgwas, "-i", input_file, "-cc",
                             "-dists", "distance_tss"+":"+home_dir+"dist_model",
-                            "-w", keep_mods,
+                            "-w", model_sub, #keep_mods,
                             "-p", best_p, "-xv", "-print",
-                            "-o", out_dir+"drop-"+mod]
+                            "-o", out_dir+"drop-"+dropped+mod]
         else:
             command_list = [fgwas, "-i", input_file, "-cc",
                             "-w", keep_mods, "-p", best_p, "-xv", "-print",
-                            "-o", out_dir+"drop-"+mod]
-        #print command_list
+                            "-o", out_dir+"drop-"+dropped+mod]
         command = " ".join(command_list)
         script='''
 #$ -N job_drop-%s
 #$ -pe shmem 1
 #$ -P mccarthy.prjc
-#$ -q short.qc
+#$ -q long.qc
 #$ -e %s%s.error
 #$ -o %s%s.out
 #$ -V
 
 %s
-        ''' % (mod, log_dir,"job_drop-"+mod,
-        log_dir,"job_drop-"+mod, command)
+        ''' % (dropped+mod, log_dir,"job_drop-"+dropped+mod,
+        log_dir,"job_drop-"+dropped+mod, command)
         fout.write(script)
         fout.close()
         call = ["qsub", job_file]
-        if first_go==True:
+        out_path = out_dir+"drop-"+dropped+mod+".ridgeparams"
+        if os.path.exists(out_path) == False:
             sp.check_call(call)
-    if first_go==True:
-        raw_input('Press enter to continue when jobs are complete: ')
+        if os.path.exists(out_path) == True and os.stat(out_path).st_size == 0:
+            sp.check_call(call)
+    job_list = moniter_rescomp_jobs.get_job_ids("job_")
+    moniter_rescomp_jobs.wait_for_jobs(job_list)
     print "The best likelihood in full model: %s" % str(best_llk)
     track_dic = {}
     for mod in model_list:
-        fin = open(out_dir+"drop-"+mod+".ridgeparams",'r')
+        fin = open(out_dir+"drop-"+dropped+mod+".ridgeparams",'r')
         line_list = fin.readlines()
         fin.close()
         line = line_list[-1]
@@ -386,61 +367,59 @@ def step5_6_sequential(model_list,best_p,best_llk,first_go=True):
         print ("Best dropped model: %s" % best_dropped_mod)
         print ("Best dropped llk: %s" % best_dropped_llk)
         print ("Annotations to keep: %s" % ",".join(report_list))
-        return best_dropped_mod,best_dropped_llk, report_list
+        status_complete = False
+        return best_dropped_mod,best_dropped_llk, report_list, status_complete
     except:
         print ("Dropping models didn't improve cross-validated likelihood")
         print ("Keep the current model!")
-        return False,False,model_list
-
-
+        status_complete = True
+        return best_dropped_mod,False,model_list, status_complete
 
 
 def main():
-    ### Steps 1-2
-    #step1()
-    #top = step2()
-    ##top = step2(first_go=False)
-    #top_annot, top_val = top[0], top[1]
-    #print "Top annotation: " + str(top_annot) + " Value: " + str(top_val)
-    #Top annotation: islet_state8 Value: 781.647
+    sys.stdout.write("Step 1: Running each annotation separately and identifying signficant annotations\n")
+    step1()
+    sig_list = sig_annot_list() # limiting to only annotations that didn't overlap zero (log2FE) from single analysis
 
+    sys.stdout.write("Step 2: Finding the single best annotation to seed the model\n")
+    top = step2(sig_list) #step2(first_go=False)
+    top_annot, top_val = top[0], top[1]
+    print "Top annotation: " + str(top_annot) + " Value: " + str(top_val)
 
-    ### Step 3
-    #top_annot,top_val = "islet_state8", 781.647 # determined from steps 1,2
-    #('islet_state8+islet_state9+cds+islet_state6+distance_tss+intron', 800.90999999999997)
-    #top_annot,top_val = "islet_state8+islet_state9+cds+islet_state6+distance_tss+intron", 800.91
-    #top_annot,top_val = "islet_state8+islet_state9+cds+islet_state6+distance_tss+intron+transcript+islet_state7", 802.614
-    top_annot,top_val = "islet_state8+islet_state9+cds+islet_state6+distance_tss+intron+transcript+islet_state7+utr_5+islet_state13+islet_state15+utr_3+promoter+islet_atac+exon+islet_state11+islet_state3+islet_state10+islet_state4+islet_state14", 806.045
+    sys.stdout.write("Step 3: Iteratively grow the model based on annotations that improve model likelihood\n")
+    iter1 = step3(top_annot, top_val,sig_list)
+    #print iter1
+    top_annot,top_val,remaining  = iter1[0][0], iter1[0][1], iter1[1]
+    while remaining > 0:
+        iteration = step3(top_annot, top_val,sig_list)
+        print len(iteration[0])
+        try:
+            assert not isinstance(iteration[0], basestring)
+            top_annot, top_val = iteration[0][0], iteration[0][1]
+        except:
+            top_annot = iteration[0]
+        remaining = iteration[1]
+        print "REMAINING: %d" % remaining
 
-    #iter1 = step3(top_annot, top_val,first_pass=False)
-    #iter2 = step3(iter1[0], iter1[1])
-    #iter3 = step3(iter2[0], iter2[1])
-
-    ## Note: keep running iterations until additional annotations no longer
-    ## improve the model (using ln(lk) or AIC criterion above)
-
-    ### Step 4
-    ## There are 20 annotations in the resulting model (shown below)
-    model_list = ["islet_state8","islet_state9","cds","islet_state6","distance_tss",
-                  "intron","transcript","islet_state7","utr_5","islet_state13","islet_state15",
-                  "utr_3","promoter","islet_atac","exon","islet_state11","islet_state3","islet_state10",
-                  "islet_state4","islet_state14"]
-
+    sys.stdout.write("Step 4: Find penalty with best cross-valitated likelihood\n")
+    #model_list = ["islet_state8","islet_state9","cds","islet_state6","distance_tss",
+    #              "intron","transcript","islet_state7","islet_state5"]
+    model_list = top_annot.split("+")
+    print top_annot
     best_p, best_llk = step4(model_list)
-    #best_p, best_llk = step4(model_list,first_go=False)
 
-    # Step 5
-    #mod,llk,keep = step5_6_sequential(model_list,best_p,best_llk,first_go=True)
-    #
-    # Need to keep iterating
-    #print keep
-    #model_list = ["intron","islet_state9","utr_3"]
-    #best_p, best_llk = step4(model_list)
-    #mod,llk,keep = step5_6_sequential(model_list,best_p,best_llk,first_go=True)
+    sys.stdout.write("Step 5: Test dropping annotations from the model and evaluating cross-valitated likelihood\n")
+    dropped_mods = []
+    mod,llk,keep,status = step5(model_list,best_p,best_llk,previously_dropped=[])
+    dropped_mods.append(mod)
+    while status == False:
+        model_list.remove(mod)
+        mod,llk,keep,status = step5(model_list,best_p,best_llk,previously_dropped=dropped_mods)
+        dropped_mods.append(mod)
 
-    #model_list = ["intron","utr_3"]
-    #best_p, best_llk = step4(model_list)
-    #mod,llk,keep = step5_6_sequential(model_list,best_p,best_llk,first_go=True)
+    sys.stdout.write("Step 6: Determine the best cross-validated model\n")
+    print "Here are the annotations in the best model:"
+    print model_list
+    print "Prefix of files for best model: %s" % (out_dir+"drop-"+"+".join(dropped_mods))
 
-    # The best model is ["intron","utr_3"]
 if (__name__=="__main__"): main()

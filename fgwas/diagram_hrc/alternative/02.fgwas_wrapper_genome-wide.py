@@ -267,7 +267,7 @@ def step4(model_list):
 #$ -N job_%s
 #$ -pe shmem 1
 #$ -P mccarthy.prjc
-#$ -q short.qc
+#$ -q long.qc
 #$ -e %s%s.error
 #$ -o %s%s.out
 echo "start time" `date`

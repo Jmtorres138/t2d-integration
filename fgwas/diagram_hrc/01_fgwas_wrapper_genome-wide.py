@@ -425,7 +425,33 @@ def wrapper():
     sys.stdout.write("Step 6: Determine the best cross-validated model\n")
     print "Here are the annotations in the best model:"
     print model_list
-    print "Prefix of files for best model: %s" % (out_dir+"drop-"+"+".join(dropped_mods))
+    pre_list = [x for x in dropped_mods if x != 'NA']
+    prefix = out_dir+"drop-"+"+".join(pre_list)
+    print "Prefix of files for best model: %s" % (prefix)
+    print "Copying best model input files with prefix: 'best-joint-model'"
+    command = ["cp",prefix+".llk", out_dir+"best-joint-model.llk"]
+    sp.check_call(" ".join(command),shell=True)
+    command = ["cp",prefix+".params", out_dir+"best-joint-model.params"]
+    sp.check_call(" ".join(command),shell=True)
+    command = ["cp",prefix+".ridgeparams", out_dir+"best-joint-model.ridgeparams"]
+    sp.check_call(" ".join(command),shell=True)
+    command = ["cp",prefix+".segbfs.gz", out_dir+"best-joint-model.segbfs.gz"]
+    sp.check_call(" ".join(command),shell=True)
+    command = ["cp",prefix+".bfs.gz", out_dir+"best-joint-model.bfs.gz"]
+    sp.check_call(" ".join(command),shell=True)
+    print ("Removing all intermediate files...")
+    all_files = os.listdir(out_dir)
+    intermed_files1 = [x for x in all_files if "+" in x]
+    intermed_files2 = [x for x in all_files if "drop" in x]
+    intermed_files = list(set(intermed_files1 + intermed_files2))
+    print len(all_files)
+    print len(intermed_files)
+    keep_files = list(set(all_files).difference(intermed_files))
+    print keep_files
+    print len(keep_files)
+    for f in intermed_files:
+        command = ["rm",out_dir+f]
+        #sp.check_call(" ".join(command),shell=True)
 
 def main():
     wrapper()
