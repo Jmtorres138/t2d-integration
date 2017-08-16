@@ -56,7 +56,8 @@ make_count_plot <- function(prof.file){
     scale_y_continuous(limits=c(0,10000000),breaks=seq(0,10000000,500000)) + 
     theme_bw() + theme(panel.grid.minor.y=element_blank(),
                        panel.grid.major.y=element_line(color="black",linetype=2),
-                       axis.text.x=element_text(angle=-90,vjust=0.5))
+                       axis.text.x=element_text(angle=-90,vjust=0.5)) + 
+    xlab("Annotation")
   return(plt)
 }
 
