@@ -318,7 +318,7 @@ def step5(model_list,best_p,best_llk,best_dropped_mod="NA",previously_dropped=[]
         else:
             qc = "long.qc"
         keep_mods = "+".join(keep_list)
-        job_file = job_dir+"job_drop-"+dropped+mod+".sh"
+        job_file = job_dir+job_prefix+"drop-"+dropped+mod+".sh"
         fout=open(job_file,'w')
         if "distance_tss" in keep_list:
             keep_list.remove("distance_tss")
@@ -343,8 +343,8 @@ def step5(model_list,best_p,best_llk,best_dropped_mod="NA",previously_dropped=[]
 echo "start time" `date`
 %s
 echo "end time" `date`
-        ''' % (job_prefix,dropped+mod, qc, log_dir,"job_drop-"+dropped+mod,
-        log_dir,"job_drop-"+dropped+mod, command)
+        ''' % (job_prefix,dropped+mod, qc, log_dir,job_prefix+"drop-"+dropped+mod,
+        log_dir,job_prefix+"drop-"+dropped+mod, command)
         fout.write(script)
         fout.close()
         call = ["qsub", job_file]
@@ -353,7 +353,7 @@ echo "end time" `date`
             sp.check_call(call)
         if os.path.exists(out_path) == True and os.stat(out_path).st_size == 0:
             sp.check_call(call)
-    job_list = moniter_rescomp_jobs.get_job_ids("job_")
+    job_list = moniter_rescomp_jobs.get_job_ids(job_prefix)
     moniter_rescomp_jobs.wait_for_jobs(job_list)
     print "The best likelihood value to beat: %s" % str(best_llk)
     track_dic = {}
