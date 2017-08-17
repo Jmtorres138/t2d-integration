@@ -12,10 +12,10 @@ import subprocess as sp
 #globals
 bedtools = "/apps/well/bedtools/2.24.0/bedtools"
 sortBed = "/apps/well/bedtools/2.24.0/sortBed"
-atac_bed = "/well/got2d/jason/reference/islet/atac_peaks/all_successful_ISL_peaks.sorted.merged.bed" # Matthias published
+
 chromseg_dir = "/well/got2d/jason/reference/chromatin_segmentation/varshney_2016/bed_files/"#
 genom_bed = "/well/got2d/jason/reference/genomic/all_genomic.bed"
-cur_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/no_atac/"
+cur_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/atac/"
 input_dir = cur_dir + "fgwas_input/"
 annot_dir = input_dir + "annot/"
 if os.path.exists(annot_dir)==False:
@@ -23,7 +23,10 @@ if os.path.exists(annot_dir)==False:
 if os.path.exists(input_dir)==False:
     os.makedirs(input_dir)
 
-
+isl_atac_bed = "/well/got2d/jason/reference/islet/atac_peaks/all_successful_ISL_peaks.sorted.merged.bed" # Matthias published
+adi_atac_bed = "/well/got2d/jason/reference/encode/adipose/adipose.hg19.bed"
+liv_atac_bed = "/well/got2d/jason/reference/encode/liver/liver.hg19.bed"
+mus_atac_bed = "/well/got2d/jason/reference/encode/muscle/muscle.hg19.bed"
 
 # functions
 
@@ -61,7 +64,24 @@ def create_beds():
         # Disregard SNPs that are in the coding set
         sp.check_call(" ".join(["mv",annot_dir+annot+"_enhancer.bed",annot_dir+"temp.bed"]),shell=True)
         command = [bedtools, "intersect","-v", "-a", annot_dir+"temp.bed",
-                   "-b", annot_dir+"coding.bed", ">", annot_dir+annot+"_enhancer.bed"]
+                   "-b", annot_dir+"coding.bed", ">", annot_dir+"temp2.bed"]
+        sp.check_call(" ".join(command),shell=True)
+
+        if annot == "Islets":
+            atac_bed = isl_atac_bed
+        elif annot == "SkeletalMuscle":
+            atac_bed = mus_atac_bed
+        elif annot == "Adipose":
+            atac_bed = adi_atac_bed
+        elif annot == "Liver":
+            atac_bed = liv_atac_bed
+        else:
+            raise NameError("Not a valid tissue")
+        sys.stdout.write("\nIntersecting with ATAC...\n")
+        command = [bedtools, "intersect","-wa", "-a", annot_dir+"temp2.bed",
+                   "-b", atac_bed, ">", annot_dir+"temp3.bed"]
+        sp.check_call(" ".join(command),shell=True)
+        command = ["uniq", annot_dir+"temp3.bed",">",annot_dir+annot+"_enhancer.bed"]#
         sp.check_call(" ".join(command),shell=True)
 
     print("\nCreated bed files")
