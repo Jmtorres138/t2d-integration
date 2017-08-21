@@ -22,7 +22,8 @@ serv.dir <- "/Users/jtorres/FUSE/"
 fgwas.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/diamante-euro-manuscript/"
 fgwas.input.dir <- fgwas.dir %&% "fgwas_input/"
 
-prof.file <- fgwas.input.dir %&% "test.temp.txt" #"gwas-annotation-profile.txt"
+prof.file <- fgwas.input.dir %&% "gwas-annotation-profile.txt" # "test.temp.txt" #
+param.file <- fgwas.dir %&% "fgwas_output/best-joint-model.params"
 
 ```
 
@@ -35,13 +36,14 @@ make_overlap_plot <- function(prof.file){
   prof.df <- fread(prof.file)
   prof.df$Prop1 <- prof.df$Overlap / prof.df$Count1
   plot.df <- data.frame("X"=prof.df$Name1,"Y"=prof.df$Name2,"Overlap"=(prof.df$Prop1))
-  plot.df <- filter(plot.df,Overlap<=1)
   plt <- ggplot(plot.df, aes(X, Y, z= Overlap)) + geom_tile(aes(fill = Overlap),color="black") + 
-      geom_text(label=prettyNum(round(plot.df$Overlap,2),2),color="dodgerblue4") + theme_bw() + 
+      geom_text(label=prettyNum(round(plot.df$Overlap,2),2),color="dodgerblue4") + 
+    theme_bw() + 
       xlab("Reference Annotation") + ylab("Query Annotation") +
       scale_fill_continuous(low="dodgerblue4",high="green2",na.value="ghostwhite") + 
       theme(panel.background=element_rect(fill="gray80"),
-            panel.grid=element_blank())  
+            panel.grid=element_blank(),
+            axis.text.x=element_text(angle=-90,vjust=0.5))  
   return(plt)
 }
 
@@ -55,16 +57,113 @@ make_count_plot <- function(prof.file){
     geom_bar(stat="identity",color="black",fill="dodgerblue3") + 
     scale_y_continuous(limits=c(0,10000000),breaks=seq(0,10000000,500000)) + 
     theme_bw() + theme(panel.grid.minor.y=element_blank(),
-                       panel.grid.major.y=element_line(color="black",linetype=2),
+                       panel.grid.major.y=element_line(color="gray",linetype=1,size=0.2),
+                       panel.grid.major.x=element_blank(),
                        axis.text.x=element_text(angle=-90,vjust=0.5)) + 
     xlab("Annotation")
   return(plt)
 }
 
 
-
-make_overlap_plot(prof.file)
+pltA <- make_count_plot(prof.file)
+pltB <- make_overlap_plot(prof.file)
+plt <- grid.arrange(arrangeGrob(pltA,pltB))
+ggsave(plot=plt,filename=fgwas.dir%&%"annotation-profile.png",
+       height=20,width=10)
 
 ```
 
+
+
+# Subset to results from Param file 
+
+
+```{r}
+
+make_overlap_param_plot <- function(prof.file,param.file){
+  param.df <- fread(param.file)
+  param.df$parameter <- gsub("_ln","",param.df$parameter)
+  prof.df <- fread(prof.file) %>% filter(Name1 %in% param.df$parameter) %>% 
+    filter(Name2 %in% param.df$parameter) 
+  prof.df$Prop1 <- prof.df$Overlap / prof.df$Count1
+  plot.df <- data.frame("X"=prof.df$Name1,"Y"=prof.df$Name2,"Overlap"=(prof.df$Prop1))
+  plt <- ggplot(plot.df, aes(X, Y, z= Overlap)) + geom_tile(aes(fill = Overlap),color="black") + 
+      geom_text(label=prettyNum(round(plot.df$Overlap,2),2),color="dodgerblue4") + 
+    theme_bw() + 
+      xlab("Reference Annotation") + ylab("Query Annotation") +
+      scale_fill_continuous(low="dodgerblue4",high="green2",na.value="ghostwhite") + 
+      theme(panel.background=element_rect(fill="gray80"),
+            panel.grid=element_blank(),
+            axis.text.x=element_text(angle=-90,vjust=0.5))  
+  return(plt)
+}
+
+make_count_param_plot <- function(prof.file,param.file){
+  param.df <- fread(param.file)
+  param.df$parameter <- gsub("_ln","",param.df$parameter)
+  prof.df <- fread(prof.file)
+  prof.df <- fread(prof.file) %>% filter(Name1 %in% param.df$parameter) %>% 
+    filter(Name2 %in% param.df$parameter)
+  prof.df <- select(prof.df,one_of("Name2","Count2"))
+  prof.df <- prof.df[!duplicated(prof.df),]
+  names(prof.df) <- c("Annotation","Count in GWAS")
+  plt <- ggplot(data=prof.df,aes(x=reorder(`Annotation`,-`Count in GWAS`)
+                                 ,y=`Count in GWAS`)) + 
+    geom_bar(stat="identity",color="black",fill="dodgerblue3") + 
+    scale_y_continuous(limits=c(0,10000000),breaks=seq(0,10000000,500000)) + 
+    theme_bw() + theme(panel.grid.minor.y=element_blank(),
+                       panel.grid.major.y=element_line(color="gray",linetype=1,size=0.2),
+                       panel.grid.major.x=element_blank(),
+                       axis.text.x=element_text(angle=-90,vjust=0.5)) + 
+    xlab("Annotation")
+  return(plt)
+}
+
+pltA <- make_count_param_plot(prof.file,param.file)
+pltB <- make_overlap_param_plot(prof.file,param.file)
+plt <- grid.arrange(arrangeGrob(pltA,pltB))
+ggsave(plot=plt,filename=fgwas.dir%&%"annotation-profile-best_model.png",
+       height=20,width=10)
+
+
+```
+
+
+# Evaluate Percentile  
+
+
+```{r}
+
+  prof.df <- fread(prof.file)
+  prof.df <- select(prof.df,one_of("Name1","Count1"))
+  prof.df <- prof.df[!duplicated(prof.df),]
+  ecdf(prof.df$Count1)(c)
+  c <- filter(prof.df,Name1=="E4_ATAC")$Count1
+
+  param.df <- fread(param.file)
+  param.df$parameter <- gsub("_ln","",param.df$parameter)  
+  prof.df <- fread(prof.file)
+  prof.df <- fread(prof.file) %>% filter(Name1 %in% param.df$parameter) %>% 
+    filter(Name2 %in% param.df$parameter) 
+  prof.df <- select(prof.df,one_of("Name1","Count1"))
+  prof.df <- prof.df[!duplicated(prof.df),]
+  ecdf(prof.df$Count1)(c)
+  c <- filter(prof.df,Name1=="E4_ATAC")$Count1  
+  
+
+```
+
+
+parameter CI_lo estimate CI_hi
+pi_region 0.116601 0.135646 0.159106
+E6_ATAC_ln 3.09479 3.70377 4.31864
+coding_ln 1.35879 2.0758 2.69111
+E4_ATAC_ln -1.88869 -0.315724 fail
+E8_ATAC_ln 1.74307 2.91493 3.49398
+E7_ATAC_ln 1.41909 2.7195 3.32176
+E3_No_ATAC_ln -2.46422 -1.19882 -0.389233
+E5_No_ATAC_ln -2.60831 -0.947348 -0.154137
+E2_No_ATAC_ln 1.33689 2.87617 3.76397
+E10_No_ATAC_ln 0.172886 2.00612 2.73559
+E4_No_ATAC_ln -0.10612 0.780159 1.50047
 
