@@ -256,11 +256,11 @@ def step4(model_list):
             model_sub = "+".join(temp_list)
             command_list = [fgwas, "-i", input_file, "-cc",
                             "-dists", "distance_tss"+":"+home_dir+"dist_model",
-                            "-w", model_sub, "-p", p, "-xv", "-print", "-onlyp",
+                            "-w", model_sub, "-p", p, "-xv", "-print", #"-onlyp",
                             "-o", out_dir+model+"-p"+p]
         else:
             command_list = [fgwas, "-i", input_file, "-cc",  "-w",
-                            model, "-p", p, "-xv", "-print", "-onlyp",
+                            model, "-p", p, "-xv", "-print", #"-onlyp",
                             "-o", out_dir+model+"-p"+p]
         command = " ".join(command_list)
         script='''
@@ -317,7 +317,7 @@ def step5(model_list,best_p,best_llk,best_dropped_mod="NA",previously_dropped=[]
         else:
             qc = "long.qc"
         keep_mods = "+".join(keep_list)
-        job_file = job_dir+"job_drop-"+dropped+mod+".sh"
+        job_file = job_dir+job_prefix+"drop-"+dropped+mod+".sh"
         fout=open(job_file,'w')
         if "distance_tss" in keep_list:
             keep_list.remove("distance_tss")
@@ -342,8 +342,8 @@ def step5(model_list,best_p,best_llk,best_dropped_mod="NA",previously_dropped=[]
 echo "start time" `date`
 %s
 echo "end time" `date`
-        ''' % (job_prefix,dropped+mod, qc, log_dir,"job_drop-"+dropped+mod,
-        log_dir,"job_drop-"+dropped+mod, command)
+        ''' % (job_prefix,dropped+mod, qc, log_dir,job_prefix+"drop-"+dropped+mod,
+        log_dir,job_prefix+"drop-"+dropped+mod, command)
         fout.write(script)
         fout.close()
         call = ["qsub", job_file]
@@ -352,7 +352,7 @@ echo "end time" `date`
             sp.check_call(call)
         if os.path.exists(out_path) == True and os.stat(out_path).st_size == 0:
             sp.check_call(call)
-    job_list = moniter_rescomp_jobs.get_job_ids("job_")
+    job_list = moniter_rescomp_jobs.get_job_ids(job_prefix)
     moniter_rescomp_jobs.wait_for_jobs(job_list)
     print "The best likelihood value to beat: %s" % str(best_llk)
     track_dic = {}
@@ -427,8 +427,17 @@ def wrapper():
     sys.stdout.write("Step 6: Determine the best cross-validated model\n")
     print "Here are the annotations in the best model:"
     print model_list
+    print dropped_mods
     pre_list = [x for x in dropped_mods if x != 'NA']
-    prefix = out_dir+"drop-"+"+".join(pre_list)
+    print pre_list
+    print (len(pre_list)>0) == False
+    #print len(pre_list) == 1
+    #print 'NA' in pre_list
+    if (len(pre_list)>0) == False:
+        prefix = out_dir + "+".join(model_list)+"-p"+str(best_p)
+        #coding+shared+Islets_enhancer+distance_tss-p0.90.
+    else:
+        prefix = out_dir+"drop-"+"+".join(pre_list)
     print "Prefix of files for best model: %s" % (prefix)
     print "Copying best model input files with prefix: 'best-joint-model'"
     command = ["cp",prefix+".llk", out_dir+"best-joint-model.llk"]
