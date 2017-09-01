@@ -24,20 +24,19 @@ library(GenomicRanges)
 
 serv.dir <- "/Users/jtorres/FUSE/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/"
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 fgwas.output.dir <- work.dir %&% "fgwas_output/"
 
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/credible_sets/"
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
 
-pre <- fgwas.output.dir %&% "drop-islet_state11+islet_state6+islet_state12+utr_5+" %&%
-  "islet_stretch_enhancer+promoter+distance_tss+islet_state9"
+pre <- fgwas.output.dir %&% "quickgo"  
 
 ```
 
 
 ```{r}
 
-get_cred <- function(dframe,cname,prob=0.95){
+get_cred <- function(dframe,cname,prob=0.99){ # 99% functional credible sets 
   index <- match(cname,names(dframe))
   vec <- sort(dframe[,index],decreasing=TRUE)
   count=0
@@ -56,11 +55,11 @@ get_cred <- function(dframe,cname,prob=0.95){
 ```
 
 
-# Get significant blocks (cummulative PPA > 0.80)
+# Get significant blocks (cummulative PPA > 0.90)
 
 ```{r}
 
-get_sig_blocks <- function(ppa.thresh=0.80){
+get_sig_blocks <- function(ppa.thresh=0.90){
   blk.df <- fread("cat " %&% pre %&% ".segbfs.gz" %&% " | zmore")
   sig.blk.df <- filter(blk.df, PPA >= ppa.thresh) %>% arrange(desc(PPA))
   chrom <- as.integer(gsub("chr","",sig.blk.df$chr))
@@ -73,7 +72,7 @@ get_sig_blocks <- function(ppa.thresh=0.80){
   write.table(x=sig.blk.df,file = work.dir %&% "sig_blocks_ppa"%&%ppa.thresh%&%".txt", 
               sep="\t",quote=FALSE,row.names=FALSE)
   prop.sig <- dim(sig.blk.df)[1]/dim(blk.df)[1] # 0.0582762
-  print("Proportion of blocks with cummulative PPA >= 0.80: " %&% prop.sig)
+  print("Proportion of blocks with cummulative PPA >= 0.90: " %&% prop.sig)
   return(sig.blk.df)
 }
 
