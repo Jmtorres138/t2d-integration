@@ -74,7 +74,10 @@ seg.vec <- sort(unique(segsnps.df$SEGNUMBER))
 
 get_credsets <- function(probthresh){
   out.df <- c()
-  for (seg in seg.vec){
+  pb <- txtProgressBar(min=0,max=length(seg.vec),style = 3)
+  for (i  in 1:length(seg.vec)){
+    setTxtProgressBar(pb,i)
+    seg <- seg.vec[i]
     temp.df <- filter(segsnps.df,SEGNUMBER==seg) %>% arrange(desc(PPA))
     cumppa <- sum(temp.df$PPA)
     temp.df <- temp.df[1:get_cred(temp.df,"PPA",prob=probthresh*cumppa),]
@@ -124,7 +127,10 @@ annot_refGene <- function(cred.df){
   
   # Sync symbol names for each SEGNUMBER by MOST COMMON gene 
   sync.df <- c()
-  for (seg in seg.vec){
+  pb <- txtProgressBar(min=0,max=length(seg.vec),style=3)
+  for (i in 1:length(seg.vec)){
+    setTxtProgressBar(pb,i)
+    seg <- seg.vec[i]
     temp.df <- filter(cred.df,SEGNUMBER==seg)
     top <- names(sort(table(temp.df$symbol),decreasing=TRUE))[1]
     temp.df$symbol <- rep(top,dim(temp.df)[1])
@@ -133,156 +139,16 @@ annot_refGene <- function(cred.df){
   cred.df <- sync.df  
   return(cred.df)
 }
+
 cred95.df <- annot_refGene(cred95.df)
 cred99.df <- annot_refGene(cred99.df)
 
 
-write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95_cum80.txt",sep="\t",
+write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95_cum90.txt",sep="\t",
             quote=FALSE,row.names=F)
 
-write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99_cum80.txt",sep="\t",
+write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90.txt",sep="\t",
             quote=FALSE,row.names=F)
-
-```
-
-
-
-# PPA Proportion Annotation Plot functions 
-
-
-```{r}
-
-get_format_df <- function(cred.df){
-  annot.vec <- names(cred.df)[9:length(names(cred.df))]
-  
-  out.df <- c() 
-  for (seg in seg.vec){
-    temp.df <- filter(cred.df,SEGNUMBER==seg)
-    cumppa <- sum(temp.df$PPA)
-    myrow <- c(seg)
-    for (annot in annot.vec){
-      index <- match(annot,names(temp.df))
-      sub.df <- temp.df[,c(1:8,index),]
-      annotppa <- sum(sub.df$PPA[as.logical(sub.df[,9])]) / cumppa
-      myrow <- c(myrow,annotppa)
-    }
-    other <- (1-sum(unique(myrow[2:(length(myrow))])))
-    other <- ifelse(other>=0,other,0)
-    myrow <- c(myrow,other)
-    names(myrow) <- c("SEGNUMBER",annot.vec,"other")
-    cumsum <- sum((myrow[2:(length(myrow))]))
-    myrow[2:length(myrow)] <- myrow[2:length(myrow)] / cumsum # scale to give proper proportion
-    out.df <- rbind(out.df,myrow)
-  }
-  out.df <- as.data.frame(out.df)
-  row.names(out.df) <- NULL
-  
-  format.df <- c() 
-  for (i in 1:dim(out.df)[1]){
-    myrow <- out.df[i,]
-    SEGNUMBER <- rep(myrow$SEGNUMBER,length(2:length(myrow)))
-    Annotation <- names(myrow)[2:length(myrow)]
-    Proportion <- as.numeric(myrow[2:length(myrow)])
-    stack.df <- data.frame(SEGNUMBER,Annotation,Proportion)
-    format.df <- rbind(format.df,stack.df)
-  }
-  
-  format.df$Annotation <- factor(format.df$Annotation,                          levels=c("islet_state8","islet_atac","coding",                     "islet_state5","islet_state2","islet_state1","other"))
-  
-  Symbol <- c()
-  for (i in 1:dim(format.df)[1]){
-    seg <- format.df$SEGNUMBER[i]
-    symb <- filter(cred.df,SEGNUMBER==seg)$symbol[1]
-    Symbol <- c(Symbol,symb)
-  }
-  format.df <- cbind(Symbol,format.df)
-  
-  isletreg.df <- c()
-  for (seg in seg.vec){
-    temp.df <- filter(format.df,SEGNUMBER==seg,
-                      Annotation=="islet_atac" | Annotation=="islet_state8")
-    islet.reg.prop <- sum(temp.df$Proportion)
-    gene <- filter(format.df,SEGNUMBER==seg)$Symbol[1]
-    stack.df <- data.frame(Symbol=gene,SEGNUMBER=seg,islet.reg.prop)
-    isletreg.df <- rbind(isletreg.df,stack.df)
-  }
-  isletreg.df <- arrange(isletreg.df,(islet.reg.prop))
-  PlotID <- paste0(isletreg.df$SEGNUMBER,": ",isletreg.df$Symbol)
-  isletreg.df <- cbind(PlotID,isletreg.df)
-  
-  PlotID <- paste0(format.df$SEGNUMBER,": ",format.df$Symbol)
-  format.df <- cbind(PlotID,format.df)
-  format.df$PlotID <- factor(format.df$PlotID,levels=isletreg.df$PlotID)
-  format.df$SEGNUMBER <- factor(format.df$SEGNUMBER,levels=isletreg.df$SEGNUMBER)
-  #format.df$Symbol <- factor(format.df$Symbol,levels=isletreg.df$Symbol)
-  
-  SNPCOUNT <- c()
-  for (i in 1:dim(format.df)[1]){
-    seg <- format.df[i,]$SEGNUMBER
-    annot <- format.df[i,]$Annotation
-    temp.df <- filter(cred.df,SEGNUMBER==seg)
-    if (annot !="other"){
-      index <- match(annot,names(cred.df))
-      #print(c(index,seg))
-      snpcount <- sum(temp.df[,index])
-    } else{
-      snpcount <- dim(temp.df)[1] - 
-        sum(as.integer(as.matrix(temp.df[,8:dim(temp.df)[2]])))
-      if (snpcount < 0){
-        snpcount <- 0 
-      }
-    }
-    SNPCOUNT <- c(SNPCOUNT,snpcount)
-  }
-  format.df$SNPCOUNT <- SNPCOUNT 
-
-  return(format.df)
-}
-
-ppa_plot <- function(format.df){
-  plt <- ggplot(data=format.df,aes(x=PlotID,y=Proportion,fill=Annotation)) + 
-            geom_bar(stat="identity",color="black",size=0.2) + 
-            scale_y_continuous(breaks=seq(0,1,0.1)) + 
-            xlab("Locus") + 
-            coord_flip() + 
-            scale_fill_brewer(palette="Spectral") +
-            ggtitle("Proportion of PPA attributable to each annotation")
-  return(plt)
-}
-
-snpcount_plot <- function(format.df){
-  plt <- ggplot(data=format.df,aes(x=PlotID,y=SNPCOUNT,fill=Annotation)) + 
-            geom_bar(stat="identity",color="black",size=0.2) + 
-            scale_y_continuous(breaks=seq(0,300,50)) + 
-            xlab("Locus")+
-            coord_flip() + 
-            scale_fill_brewer(palette="Spectral") +
-            ggtitle("Proportion of SNP count attributable to each annotation")  
-  return(plt)
-}
-
-
-```
-
-
-95% Credible Sets  
-
-```{r}
-
-form95 <- get_format_df(cred95.df)
-ppa.plt.95 <- ppa_plot(form95)
-sc.plt.95 <- snpcount_plot(form95)
-
-```
-
-
-99% Credible Sets 
-
-```{r}
-
-form99 <- get_format_df(cred99.df)
-ppa.plt.99 <- ppa_plot(form99)
-sc.plt.99 <- snpcount_plot(form99)
 
 ```
 
