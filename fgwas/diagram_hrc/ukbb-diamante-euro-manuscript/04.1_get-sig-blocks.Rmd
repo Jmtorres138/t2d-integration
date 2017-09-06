@@ -50,13 +50,15 @@ get_sig_blocks <- function(ppa.thresh=0.90){
   sig.blk.df <- cbind(SEGNUMBER,sig.blk.df)
   write.table(x=sig.blk.df,file = work.dir %&% "sig_blocks_ppa"%&%ppa.thresh%&%".txt", 
               sep="\t",quote=FALSE,row.names=FALSE)
-  saveRDS(object=sig.blk.df,file=work.dir%&%"sig.blk.df.RDS")
+  saveRDS(object=sig.blk.df,file=work.dir%&%"sig.blk."%&%"cum"%&%ppa.thresh%&%".df.RDS")
   prop.sig <- dim(sig.blk.df)[1]/dim(blk.df)[1] # 0.0582762
-  print("Proportion of blocks with cummulative PPA >= 0.90: " %&% prop.sig)
+  print("Proportion of blocks with cummulative PPA >= " %&% ppa.thresh %&% ": " %&% prop.sig)
   return(sig.blk.df)
 }
 
-sig.blk.df <- get_sig_blocks()
+sig.blk.df <- get_sig_blocks(ppa.thresh=0.90)
+sig.blk.df <- get_sig_blocks(ppa.thresh=0.80)
+sig.blk.df <- get_sig_blocks(ppa.thresh=0.50)
 
 ```
 
