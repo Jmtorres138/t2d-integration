@@ -33,14 +33,18 @@ def write_file():
         l = line.strip().split()
         chrom, pos = l[0], l[2]
         if chrom not in chrom_list:
-            print chrom
+            print ("\n" + chrom)
             chrom_list.append(chrom)
             start_list.append(pos)
             end_list.append(prev)
         prev = pos
     fin.close()
+    end_list.append(pos)
+    print chrom_list
+    print start_list
+    print end_list
     end_list.pop(0)
-    for i in range(0,len(chrom_list)-1):
+    for i in range(0,len(chrom_list)):
         chrom = chrom_list[i]
         start = start_list[i]
         end = end_list[i]
