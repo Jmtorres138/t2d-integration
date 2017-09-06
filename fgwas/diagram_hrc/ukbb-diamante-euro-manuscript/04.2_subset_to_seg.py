@@ -3,7 +3,7 @@
 '''
 Subset best fgwas model output to snps in significant blocks
 Note: First must run "Get Significant Blocks" section of file functional_credible_sets.Rmd
-Usage: python subset_to_seg.py pre sig_block_file
+Usage: python subset_to_seg.py pre sig_block_file 0.9 
 '''
 # libraries
 import sys,os,gzip
@@ -16,7 +16,7 @@ work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamant
 pre = sys.argv[1]
 #sig_block_file = work_dir + "sig_blocks_ppa90.txt"
 sig_block_file = sys.argv[2]
-
+cum_thresh = sys.argv[3]
 # functions
 
 def build_dic():
@@ -39,7 +39,7 @@ def subset_to_seg():
     fin = gzip.open(pre+".bfs.gz",'rb')
     head_list = fin.readline().strip().split()
     head_list = ["SEGNUMBER"] + head_list
-    fout = gzip.open(work_dir+"sig_block_snps.bfs.txt.gz",'wb')
+    fout = gzip.open(work_dir+"sig_block_snps.bfs"+"_"+str(cum_thresh)+".txt.gz",'wb')
     print("Writing output file...")
     fout.write(" ".join(head_list)+"\n")
     count=0

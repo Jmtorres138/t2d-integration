@@ -41,6 +41,27 @@ summary(as.integer(table(cred99.df$SEGNUMBER)))
 ```
 
 
+# Prepare loci data frame (152 GWAS loci) 
+
+
+```{r}
+
+make_loc_df <- function(){
+  list.df <- fread(gen.gwas.dir %&% "list.of.loci.single.signal.AMah31082017.txt")
+  names(list.df) <- c("CHR","POS","LOCUS")
+  list.df$CHR <- "chr"%&%list.df$CHR
+  list.df$win.start <- as.integer(list.df$POS - 500000)
+  list.df$win.end <- as.integer(list.df$POS + 500000)
+  return(list.df)
+}
+
+list.df <- make_loc_df()
+
+
+```
+
+
+
 # Subset to list file (from Anubha)
 
 ```{r}
@@ -66,16 +87,15 @@ build_fcred_gr <- function(cred.df){
 
 
 subset_to_listfile <- function(cred.df){
-  list.df <- fread(gen.gwas.dir %&% "list.of.loci.single.signal.AMah31082017.txt")
-  names(list.df) <- c("CHR","POS","LOCUS")
-  list.df$CHR <- "chr"%&%list.df$CHR
+  list.df <- make_loc_df()
   fcred.gr <- build_fcred_gr(cred.df)
   pb <- txtProgressBar(min=0,max=dim(list.df)[1],style=3)
   out.df <- c() 
   count <-0 
   for (i in 1:dim(list.df)[1]){
     setTxtProgressBar(pb,i)
-    sub.gr <- GRanges(seqnames = list.df$CHR[i],IRanges(list.df$POS[i],list.df$POS[i]))
+    #sub.gr <- GRanges(seqnames = list.df$CHR[i],IRanges(list.df$POS[i],list.df$POS[i]))
+    sub.gr <- GRanges(seqnames = list.df$CHR[i],IRanges(list.df$win.start[i],list.df$win.end[i]))
     mcols(sub.gr) <- list.df$LOCUS[i]
     build.gr <- fcred.gr[fcred.gr%over%sub.gr]
     if (length(build.gr) > 0){
@@ -93,8 +113,8 @@ subset_to_listfile <- function(cred.df){
 }
 
 cred99.mapped.df <- subset_to_listfile(cred99.df)
-write.table(cred99.mapped.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90_Anubha141.txt",
-            sep="\t",quote=FALSE,row.names=FALSE)
+#write.table(cred99.mapped.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90_Anubha141.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
 print("Amount of loci represented by credible sets: " %&% length(unique(cred99.mapped.df$locus)))
 print("Percentage: " %&% signif(length(unique(cred99.mapped.df$locus))/length(unique(list.df$LOCUS))),1)
 summary(as.integer(table(cred99.mapped.df$locus)))
@@ -106,6 +126,7 @@ hist(as.integer(table(cred99.mapped.df$locus)),breaks=30,col="blue")
 
 # Build Genetic Credible Set Reference 
 
+Note: These genetic credible sets are not up-to-date so only useful for a "rough" comparison 
 
 ```{r}
 
