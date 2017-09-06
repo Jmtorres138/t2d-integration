@@ -1,0 +1,316 @@
+---
+title: "functional_credible_sets.Rmd"
+author: "Jason Torres"
+date: "May 22, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Constructing functional (fgwas) credible sets from the fgwas model with the best cross validated likelihood 
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("dplyr")
+library("ggplot2")
+library(GenomicRanges)
+
+serv.dir <- "/Users/jtorres/FUSE/"
+
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+fgwas.output.dir <- work.dir %&% "fgwas_output/"
+
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
+
+
+cred95.df <- fread(cred.set.dir%&%"fgwas_credsets_95_cum90.txt",sep="\t")
+cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99_cum90.txt",sep="\t")
+
+gen.gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/"
+gen.cred.dir <- gen.gwas.dir %&% "freeze1_Csets/"
+
+summary(as.integer(table(cred99.df$SEGNUMBER)))
+
+```
+
+
+# Subset to list file (from Anubha)
+
+```{r}
+
+build_fcred_gr <- function(cred.df){
+  gr <- GRanges() 
+  seg.vec <- unique(cred.df$SEGNUMBER)
+  pb <- txtProgressBar(min=0,max=length(seg.vec),style=3)
+  for (i in 1:length(seg.vec)){
+    setTxtProgressBar(pb,i)
+    seg <- seg.vec[i]
+    sub.df <- filter(cred.df,SEGNUMBER==seg)
+    min.pos <- min(sub.df$POS)
+    max.pos <- max(sub.df$POS)
+    chrom <- sub.df$CHR[1]
+    id <- sub.df$SEGNUMBER[1] %&% ":"%&% sub.df$symbol[1]
+    sub.gr <- GRanges(seqnames=chrom,ranges=IRanges(start=min.pos,end=max.pos))
+    mcols(sub.gr) <- id
+    gr <- append(gr,sub.gr)
+  }
+  return(gr)
+}
+
+
+subset_to_listfile <- function(cred.df){
+  list.df <- fread(gen.gwas.dir %&% "list.of.loci.single.signal.AMah31082017.txt")
+  names(list.df) <- c("CHR","POS","LOCUS")
+  list.df$CHR <- "chr"%&%list.df$CHR
+  fcred.gr <- build_fcred_gr(cred.df)
+  pb <- txtProgressBar(min=0,max=dim(list.df)[1],style=3)
+  out.df <- c() 
+  count <-0 
+  for (i in 1:dim(list.df)[1]){
+    setTxtProgressBar(pb,i)
+    sub.gr <- GRanges(seqnames = list.df$CHR[i],IRanges(list.df$POS[i],list.df$POS[i]))
+    mcols(sub.gr) <- list.df$LOCUS[i]
+    build.gr <- fcred.gr[fcred.gr%over%sub.gr]
+    if (length(build.gr) > 0){
+      count <- count + 1 
+      print(count) 
+      seg <- as.integer(strsplit(mcols(build.gr)$X[1],split=":")[[1]][1])
+      sub.df <- filter(cred.df,SEGNUMBER==seg)
+      locus <- rep(mcols(sub.gr)$X,dim(sub.df)[1])
+      lead.gen.snp <- rep(start(sub.gr),dim(sub.df)[1])
+      build.df <- cbind(locus,lead.gen.snp,sub.df)
+      out.df <- rbind(out.df,build.df)
+    }
+  }
+  return(out.df)
+}
+
+cred99.mapped.df <- subset_to_listfile(cred99.df)
+write.table(cred99.mapped.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90_Anubha141.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
+print("Amount of loci represented by credible sets: " %&% length(unique(cred99.mapped.df$locus)))
+print("Percentage: " %&% signif(length(unique(cred99.mapped.df$locus))/length(unique(list.df$LOCUS))),1)
+summary(as.integer(table(cred99.mapped.df$locus)))
+hist(as.integer(table(cred99.mapped.df$locus)),breaks=30,col="blue")
+
+```
+
+
+
+# Build Genetic Credible Set Reference 
+
+
+```{r}
+
+build_gencred_df <- function(){
+  file.vec <- list.files(gen.cred.dir)
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=length(file.vec),style=3)
+  for (i in 1:length(file.vec)){
+    setTxtProgressBar(pb,i)
+    f <- file.vec[i]
+    name <- strsplit(f,split="_cred.set")[[1]][1] 
+    sub.df <- fread(gen.cred.dir%&%f)
+    sub.df$Name <- rep(name,dim(sub.df)[1])
+    out.df <- rbind(out.df,sub.df)
+  }
+  return(out.df)
+}
+
+gen.cred.df <- build_gencred_df()
+
+summary(as.integer(table(gen.cred.df$Name)))
+hist(as.integer(table(gen.cred.df$Name)))
+
+```
+
+
+
+
+# PPA Proportion Annotation Plot functions 
+
+
+```{r}
+
+
+get_format_df <- function(cred.df,lev.vec){
+  annot.vec <- names(cred.df)[9:length(names(cred.df))]
+  out.df <- c() 
+  seg.vec <- unique(cred.df$SEGNUMBER)
+  pb <- txtProgressBar(min=0,max=length(seg.vec),style=3)
+  for (i in 1:length(seg.vec)){
+    setTxtProgressBar(pb,i)
+    seg <- seg.vec[i]
+    temp.df <- filter(cred.df,SEGNUMBER==seg)
+    cumppa <- sum(temp.df$PPA)
+    myrow <- c(seg)
+    for (annot in annot.vec){
+      index <- match(annot,names(temp.df))
+      sub.df <- temp.df[,c(1:8,index),]
+      annotppa <- sum(sub.df$PPA[as.logical(sub.df[,9])]) / cumppa
+      myrow <- c(myrow,annotppa)
+    }
+    other <- (1-sum(unique(myrow[2:(length(myrow))])))
+    other <- ifelse(other>=0,other,0)
+    myrow <- c(myrow,other)
+    names(myrow) <- c("SEGNUMBER",annot.vec,"other")
+    cumsum <- sum((myrow[2:(length(myrow))]))
+    myrow[2:length(myrow)] <- myrow[2:length(myrow)] / cumsum # scale to give proper proportion
+    out.df <- rbind(out.df,myrow)
+  }
+  out.df <- as.data.frame(out.df)
+  row.names(out.df) <- NULL
+  
+  format.df <- c() 
+  pb <- txtProgressBar(min=0,max=dim(out.df)[1],style=3)
+  for (i in 1:dim(out.df)[1]){
+    myrow <- out.df[i,]
+    setTxtProgressBar(pb,i)
+    SEGNUMBER <- rep(myrow$SEGNUMBER,length(2:length(myrow)))
+    Annotation <- names(myrow)[2:length(myrow)]
+    Proportion <- as.numeric(myrow[2:length(myrow)])
+    stack.df <- data.frame(SEGNUMBER,Annotation,Proportion)
+    format.df <- rbind(format.df,stack.df)
+  }
+  format.df$Annotation <- factor(format.df$Annotation,levels=lev.vec)
+  
+  Symbol <- c()
+  pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
+  for (i in 1:dim(format.df)[1]){
+    setTxtProgressBar(pb,i)
+    seg <- format.df$SEGNUMBER[i]
+    symb <- filter(cred.df,SEGNUMBER==seg)$symbol[1]
+    Symbol <- c(Symbol,symb)
+  }
+  format.df <- cbind(Symbol,format.df)
+  
+  isletreg.df <- c()
+  pb <- txtProgressBar(min=0,max=length(seg.vec),style=3)
+#  for (seg in seg.vec){
+  for (i in 1:length(seg.vec)){
+    setTxtProgressBar(pb,i)
+    seg <- seg.vec[i]
+    temp.df <- filter(format.df,SEGNUMBER==seg,
+                      Annotation=="islet_state8" | Annotation=="islet_state9")
+    islet.reg.prop <- sum(temp.df$Proportion)
+    gene <- filter(format.df,SEGNUMBER==seg)$Symbol[1]
+    stack.df <- data.frame(Symbol=gene,SEGNUMBER=seg,islet.reg.prop)
+    isletreg.df <- rbind(isletreg.df,stack.df)
+  }
+  isletreg.df <- arrange(isletreg.df,(islet.reg.prop))
+  PlotID <- paste0(isletreg.df$SEGNUMBER,": ",isletreg.df$Symbol)
+  isletreg.df <- cbind(PlotID,isletreg.df)
+  
+  PlotID <- paste0(format.df$SEGNUMBER,": ",format.df$Symbol)
+  format.df <- cbind(PlotID,format.df)
+  format.df$PlotID <- factor(format.df$PlotID,levels=isletreg.df$PlotID)
+  format.df$SEGNUMBER <- factor(format.df$SEGNUMBER,levels=isletreg.df$SEGNUMBER)
+  #format.df$Symbol <- factor(format.df$Symbol,levels=isletreg.df$Symbol)
+  
+  SNPCOUNT <- c()
+  pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
+  for (i in 1:dim(format.df)[1]){
+    setTxtProgressBar(pb,i)
+    seg <- format.df[i,]$SEGNUMBER
+    annot <- format.df[i,]$Annotation
+    temp.df <- filter(cred.df,SEGNUMBER==seg)
+    if (annot !="other"){
+      index <- match(annot,names(cred.df))
+      #print(c(index,seg))
+      snpcount <- sum(temp.df[,index])
+    } else{
+      snpcount <- dim(temp.df)[1] - 
+        sum(as.integer(as.matrix(temp.df[,8:dim(temp.df)[2]])))
+      if (snpcount < 0){
+        snpcount <- 0 
+      }
+    }
+    SNPCOUNT <- c(SNPCOUNT,snpcount)
+  }
+  format.df$SNPCOUNT <- SNPCOUNT 
+
+  return(format.df)
+}
+
+ppa_plot <- function(format.df){
+  plt <- ggplot(data=format.df,aes(x=PlotID,y=Proportion,fill=Annotation)) + 
+            geom_bar(stat="identity",color="black",size=0.2) + 
+            scale_y_continuous(breaks=seq(0,1,0.1)) + 
+            xlab("Locus") + 
+            coord_flip() + 
+            scale_fill_brewer(palette="Spectral") +
+            ggtitle("Proportion of PPA attributable to each annotation")
+  return(plt)
+}
+
+snpcount_plot <- function(format.df){
+  plt <- ggplot(data=format.df,aes(x=PlotID,y=SNPCOUNT,fill=Annotation)) + 
+            geom_bar(stat="identity",color="black",size=0.2) + 
+            scale_y_continuous(breaks=seq(0,500,50)) + 
+            xlab("Locus")+
+            coord_flip() + 
+            scale_fill_brewer(palette="Spectral") +
+            ggtitle("Proportion of SNP count attributable to each annotation")  
+  return(plt)
+}
+
+
+```
+
+
+```{r}
+
+get_loc_id <- function(seg){
+  loc <- unique(filter(cred99.mapped.df,SEGNUMBER==seg)$locus)
+  return(loc) 
+}
+
+update_form_df <- function(form.df){
+  #form.df <- na.omit(form.df)
+  out.df <- c() 
+  for (i in 1:dim(form.df)[1]){
+    row <- form.df[i,]
+    locid <- get_loc_id(row$SEGNUMBER)
+    row$PlotID <- as.factor(locid %&% " : " %&% row$PlotID)
+    out.df <- rbind(out.df,row)
+  }
+  #out.df$PlotID <- as.factor(out.df$PlotID)
+  return(out.df)
+}
+
+```
+
+
+
+99% Credible Sets 
+
+```{r}
+
+lev.vec <- c("islet_state8","islet_state9","coding","islet_state5",
+             "islet_state2","islet_state1","other")
+
+
+
+summary(as.integer(table(cred99.mapped.df$SEGNUMBER)))
+c.df <- cred99.mapped.df
+c.df$symbol <- c.df$symbol %&% " : " %&% c.df$locus
+c.df <- as.data.frame(c.df)[,3:16]
+form99 <- get_format_df(c.df,lev.vec)
+#form99.update <- update_form_df(form99)
+ppa.plt.99 <- ppa_plot(form99)
+sc.plt.99 <- snpcount_plot(form99)
+
+```
+
+
+
+
+
+
