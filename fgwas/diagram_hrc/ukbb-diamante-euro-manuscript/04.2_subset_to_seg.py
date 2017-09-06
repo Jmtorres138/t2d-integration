@@ -11,7 +11,7 @@ import sys,os,gzip
 
 # globals
 server_dir = "/well/got2d/jason/"
-work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/"
+work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 #pre = work_dir + "fgwas_output/" + "drop-islet_state11+islet_state6+islet_state12+utr_5+islet_stretch_enhancer+promoter+distance_tss+islet_state9"
 pre = sys.argv[1]
 #sig_block_file = work_dir + "sig_blocks_ppa90.txt"
