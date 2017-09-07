@@ -48,7 +48,7 @@ def write_file():
         chrom = chrom_list[i]
         start = start_list[i]
         end = end_list[i]
-        write_list = [chrom,start,end]
+        write_list = [chrom,start,str(int(end)+1)]
         fout.write("\t".join(write_list)+"\n")
     fout.close()
 
