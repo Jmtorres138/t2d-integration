@@ -30,9 +30,6 @@ fgwas.output.dir <- work.dir %&% "fgwas_output/"
 cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
 
 
-cred95.df <- fread(cred.set.dir%&%"fgwas_credsets_95_cum90.txt",sep="\t")
-cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99_cum90.txt",sep="\t")
-
 gen.gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/"
 gen.cred.dir <- gen.gwas.dir %&% "freeze1_Csets/"
 
@@ -59,6 +56,17 @@ list.df <- make_loc_df()
 
 
 ```
+
+
+# Write loci-partitioned BED file 
+
+
+```{r}
+
+
+
+```
+
 
 
 
@@ -112,6 +120,17 @@ subset_to_listfile <- function(cred.df){
   return(out.df)
 }
 
+
+```
+
+
+# Run cummulative block ppa 0.5
+
+```{r}
+
+cred95.df <- fread(cred.set.dir%&%"fgwas_credsets_95_cum50.txt",sep="\t")
+cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99_cum50.txt",sep="\t")
+
 cred99.mapped.df <- subset_to_listfile(cred99.df)
 #write.table(cred99.mapped.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90_Anubha141.txt",
 #            sep="\t",quote=FALSE,row.names=FALSE)
@@ -121,6 +140,49 @@ summary(as.integer(table(cred99.mapped.df$locus)))
 hist(as.integer(table(cred99.mapped.df$locus)),breaks=30,col="blue")
 
 ```
+
+
+
+# Run cummulative block ppa 0.8
+
+```{r}
+
+cred95.df <- fread(cred.set.dir%&%"fgwas_credsets_95_cum80.txt",sep="\t")
+cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99_cum80.txt",sep="\t")
+
+cred99.mapped.df <- subset_to_listfile(cred99.df)
+#write.table(cred99.mapped.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90_Anubha141.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
+print("Amount of loci represented by credible sets: " %&% length(unique(cred99.mapped.df$locus)))
+print("Percentage: " %&% signif(length(unique(cred99.mapped.df$locus))/length(unique(list.df$LOCUS))),1)
+summary(as.integer(table(cred99.mapped.df$locus)))
+hist(as.integer(table(cred99.mapped.df$locus)),breaks=30,col="blue")
+
+```
+
+
+
+
+# Run cummulative block ppa 0.9
+
+```{r}
+
+cred95.df <- fread(cred.set.dir%&%"fgwas_credsets_95_cum90.txt",sep="\t")
+cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99_cum90.txt",sep="\t")
+
+cred99.mapped.df <- subset_to_listfile(cred99.df)
+#write.table(cred99.mapped.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90_Anubha141.txt",
+#            sep="\t",quote=FALSE,row.names=FALSE)
+print("Amount of loci represented by credible sets: " %&% length(unique(cred99.mapped.df$locus)))
+print("Percentage: " %&% signif(length(unique(cred99.mapped.df$locus))/length(unique(list.df$LOCUS))),1)
+summary(as.integer(table(cred99.mapped.df$locus)))
+hist(as.integer(table(cred99.mapped.df$locus)),breaks=30,col="blue")
+
+```
+
+
+
+
 
 
 
