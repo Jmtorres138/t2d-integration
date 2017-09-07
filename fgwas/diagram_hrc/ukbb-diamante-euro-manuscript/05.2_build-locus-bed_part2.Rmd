@@ -1,0 +1,220 @@
+---
+title: "build locus bed file"
+author: "Jason Torres"
+date: "May 22, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Constructing functional (fgwas) credible sets from the fgwas model with the best cross validated likelihood 
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("dplyr")
+library("ggplot2")
+library("GenomicRanges")
+library("ggbio")
+library("trackViewer")
+
+serv.dir <- "/Users/jtorres/FUSE/"
+
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+fgwas.output.dir <- work.dir %&% "fgwas_output/"
+
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
+
+
+gen.gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/"
+gen.cred.dir <- gen.gwas.dir %&% "freeze1_Csets/"
+
+size.df <- fread(work.dir%&%"hg19.chrom.sizes")
+lim.df <- fread(work.dir %&% "chromosome_limits.txt")
+
+```
+
+
+# Prepare loci data frame (152 GWAS loci) 
+
+
+```{r}
+
+make_loc_df <- function(){
+  list.df <- fread(gen.gwas.dir %&% "list.of.loci.single.signal.AMah31082017.txt")
+  names(list.df) <- c("CHR","POS","LOCUS")
+  list.df$CHR <- "chr"%&%list.df$CHR
+  list.df$win.start <- as.integer(list.df$POS - 500000)
+  list.df$win.end <- as.integer(list.df$POS + 500000)
+  for (i in 1:dim(list.df)[1]){
+    c <- list.df$CHR[i]
+    s <- list.df$win.start[i]
+    e <- list.df$win.end[i]
+    if (s < 1){
+      list.df$win.start[i] <- 1 
+    }
+    cap <- filter(lim.df,V1==c)$V3
+    if (e > cap){
+      list.df$win.end[i] <- cap
+    }
+  }
+  return(list.df)
+}
+
+process_loci_gr <- function(){
+  loci.gr <- GRanges(seqnames=loc.df$CHR,IRanges(loc.df$win.start,loc.df$win.end))
+  out.gr <- GRanges()
+  pb <- txtProgressBar(min=0,max=length(loci.gr),style=3)
+  for (i in 1:length(loci.gr)){
+    setTxtProgressBar(pb,i)
+    gr <- loci.gr[i] 
+    check <- loci.gr[loci.gr %over% gr]
+    chromo <- as.character(seqnames(check))[1]
+    if (length(check)==2){ # None are greater than 2 
+      chunk1.gr <- GRanges(seqnames=chromo,IRanges(start(check)[1],start(check)[2]))
+      chunk2.gr <- GRanges(seqnames=chromo,IRanges(end(check)[1],end(check)[2]))
+      out.gr <- append(out.gr,chunk1.gr)
+      out.gr <- append(out.gr,chunk2.gr)
+    } else{
+      out.gr <- append(out.gr, gr)
+    }
+  }
+  return(reduce(out.gr))
+}
+
+loc.df <- make_loc_df()
+loc.gr <- process_loci_gr()
+loc.df <- data.frame("CHR"=seqnames(loc.gr),
+                       "Start"=start(loc.gr),
+                       "End"=end(loc.gr))
+loc.df$CHR <- as.character(loc.df$CHR)
+
+write.table(loc.df,file=work.dir%&%"t2d-loci-regions.bed",sep="\t",quote=FALSE,
+            row.names=F,col.names=F)
+
+```
+
+
+# Write loci-partitioned BED file 
+
+
+```{r}
+
+
+process_loci_gr <- function(){
+  loci.gr <- GRanges(seqnames=loc.df$CHR,IRanges(loc.df$Start,loc.df$End))
+  out.gr <- GRanges()
+  pb <- txtProgressBar(min=0,max=length(loci.gr),style=3)
+  for (i in 1:length(loci.gr)){
+    setTxtProgressBar(pb,i)
+    gr <- loci.gr[i] 
+    check <- loci.gr[loci.gr %over% gr]
+    chromo <- as.character(seqnames(check))[1]
+    if (length(check)==2){ # None are greater than 2 
+      chunk1.gr <- GRanges(seqnames=chromo,IRanges(start(check)[1],start(check)[2]))
+      chunk2.gr <- GRanges(seqnames=chromo,IRanges(end(check)[1],end(check)[2]))
+      out.gr <- append(out.gr,chunk1.gr)
+      out.gr <- append(out.gr,chunk2.gr)
+    } else{
+      out.gr <- append(out.gr, gr)
+    }
+  }
+  return(reduce(out.gr))
+}
+
+
+divide_seq <- function(chromo,start,end,width=1e6){
+  vec <- seq(start,end,width)
+  vec <- unique(append(vec,end))
+  out.df <- c()
+  for (i in 1:length(vec)){
+    if (i == length(vec)){
+      pass <- TRUE 
+    } else if (i == (length(vec)-1)){
+      build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]))
+      out.df <- rbind(out.df,build.df)
+    } else{
+      build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]-1))
+      out.df <- rbind(out.df,build.df)
+    }
+  }
+  return(out.df)
+}
+
+get_bed_df <- function(){
+  loci.gr <- process_loci_gr()
+  dis.df <- data.frame("CHR"=seqnames(disjoin.gr),
+                       "Start"=start(disjoin.gr),
+                       "End"=end(disjoin.gr))
+  lim.gr <- GRanges(seqnames=lim.df$V1,IRanges(lim.df$V2,lim.df$V3))
+  
+  tot.gr <- sort(sortSeqlevels(append(lim.gr,loci.gr)))
+  disjoin.gr <- disjoin(tot.gr)
+  dis.df <- data.frame("CHR"=seqnames(disjoin.gr),
+                       "Start"=start(disjoin.gr),
+                       "End"=end(disjoin.gr))
+  dis.df$CHR <- as.character(dis.df$CHR)
+  dis.df$chrom <- as.integer(gsub("chr","",dis.df$CHR))
+  dis.df <- arrange(dis.df,chrom)
+  dis.df$range <- dis.df$End - dis.df$Start
+  out.df <- c()
+  for (i in 1:dim(dis.df)[1]){
+    if (dis.df$range<=1e6){
+      build.df <- data.frame("CHR"=dis.df$CHR[i],
+                       "Start"=dis.df$Start[i],
+                       "End"=dis.df$End[i])
+    } else{
+      build.df <- divide_seq(dis.df$CHR[i],dis.df$Start[i],dis.df$End[i])
+    }
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+bed.df <- get_bed_df()
+bed.df$CHR <- as.character(bed.df$CHR)
+write.table(bed.df,file=work.dir%&%"loci-partition.bed",sep="\t",quote=FALSE,
+            row.names=F,col.names=F)
+
+```
+
+
+Checks 
+
+```{r}
+
+#t <- disjoin.gr[disjoin.gr %over% loci.gr]
+#for (i in 1:length(loci.gr)){
+  #print(loci.gr[i])
+#  check <- disjoin.gr[disjoin.gr %over% loci.gr[i]]
+#  if (length(check)>1){
+#    print(i)
+    #print("loci.gr")
+    #print(loci.gr[i])
+    #print("disjoin.gr")
+    #print(check)
+#  }
+#}
+
+t <- filter(bed.df,Start%in%loc.df$Start,End%in%End)
+print(str(t))
+
+#plotGRanges(loci.gr,range=GRanges("chr8",IRanges(113565, 146300622)))
+
+#    CHR     Start       End chrom    range
+#1  chr7  31228453 116995666     7 85767213
+
+```
+
+
+
+
+
+
+
