@@ -48,7 +48,7 @@ def write_file():
         chrom = chrom_list[i]
         start = start_list[i]
         end = end_list[i]
-        write_list = [chrom,start,str(int(end)+1)]
+        write_list = [chrom,start,str(int(end)+2)] # to address fgwas ERROR: position 249227788 is outside range of bed file
         fout.write("\t".join(write_list)+"\n")
     fout.close()
 
