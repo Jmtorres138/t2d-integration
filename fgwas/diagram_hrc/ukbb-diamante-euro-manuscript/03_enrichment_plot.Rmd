@@ -21,7 +21,7 @@ library("gridExtra")
 serv.dir <- "/Users/jtorres/FUSE/"
 fgwas.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 fgwas.out.dir <- fgwas.dir %&% "fgwas_output/"
-best.joint.model.file.prefix <- fgwas.out.dir %&% "quickgo"#"best-joint-model"
+best.joint.model.file.prefix <- fgwas.out.dir %&% "best-joint-model"
 
 my.title <- "DIAMANTE-UKBB (HRC Imputation)"
 output.prefix <- "DIAMANTE-UKBB-gwas"
@@ -97,7 +97,7 @@ build_param_df <- function(name.vec=NULL){
 }
 
 
-build_param_best_df <- function(pre,name.vec=NULL){
+build_param_best_df <- function(pre){
   # Note: pre is best model from fgwas run 
   param.df <- annot_process(pre %&% ".params")
   param.df <- arrange(param.df,desc(estimate))
@@ -108,9 +108,9 @@ build_param_best_df <- function(pre,name.vec=NULL){
   #  param.df$parameter<-name.vec
   #}
   if (!is.null(annotation.keyfile)){
-    out.df <- update_names(param.df,key.df)
+    param.df <- update_names(param.df,key.df)
   }
-  return(out.df)
+  return(param.df)
 }
 
 
