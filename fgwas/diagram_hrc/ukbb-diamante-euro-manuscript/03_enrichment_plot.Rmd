@@ -9,10 +9,10 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Setup libraries and directories 
+Setup libraries and directories
 
 ```{r}
-"%&%" <- function(a,b) paste0(a,b) 
+"%&%" <- function(a,b) paste0(a,b)
 library("dplyr")
 library("data.table")
 library("ggplot2")
@@ -35,7 +35,7 @@ if (!is.null(annotation.keyfile)){
 
 ```
 
-# Processing function 
+# Processing function
 
 ```{r}
 
@@ -98,7 +98,7 @@ build_param_df <- function(name.vec=NULL){
 
 
 build_param_best_df <- function(pre,name.vec=NULL){
-  # Note: pre is best model from fgwas run 
+  # Note: pre is best model from fgwas run
   param.df <- annot_process(pre %&% ".params")
   param.df <- arrange(param.df,desc(estimate))
   param.df <- filter(param.df,parameter!="pi")
@@ -117,7 +117,7 @@ build_param_best_df <- function(pre,name.vec=NULL){
 ```
 
 
-# Annotation plot 
+# Annotation plot
 
 ```{r}
 
@@ -125,17 +125,17 @@ build_param_best_df <- function(pre,name.vec=NULL){
 an_plot <- function(mydf,mytitl="",mylow=-10,myhigh=10,interval=1){
   mydf <- within(mydf,parameter<-factor(mydf$parameter,levels=rev(mydf$parameter)))
   mydf <- filter(mydf,parameter!="pi_region")
-  plt <- ggplot(data=mydf,aes(x=parameter,y=estimate)) + 
+  plt <- ggplot(data=mydf,aes(x=parameter,y=estimate)) +
       geom_hline(yintercept=0,linetype=2) +
-    ylab("Log2FE") + xlab("Annotation") + 
-    geom_errorbar(aes(ymin=CI_lo,ymax=CI_hi),width=0.1) + 
+    ylab("Log2FE") + xlab("Annotation") +
+    geom_errorbar(aes(ymin=CI_lo,ymax=CI_hi),width=0.1) +
     geom_point(shape=21,size=1.5,col="black",aes(fill=(estimate>0)))  +
-    scale_fill_manual(values=c("steelblue1","firebrick1")) + 
+    scale_fill_manual(values=c("steelblue1","firebrick1")) +
     theme_bw()  +  theme(legend.position = "none",
                          panel.grid.minor=element_blank(),
-                         panel.grid.major=element_blank()) + 
-    scale_y_continuous(breaks=seq(mylow,myhigh,by=interval)) + 
-    coord_flip(ylim=c(mylow,myhigh)) + 
+                         panel.grid.major=element_blank()) +
+    scale_y_continuous(breaks=seq(mylow,myhigh,by=interval)) +
+    coord_flip(ylim=c(mylow,myhigh)) +
     ggtitle(mytitl)
   return(plt)
 }
@@ -143,7 +143,7 @@ an_plot <- function(mydf,mytitl="",mylow=-10,myhigh=10,interval=1){
 
 ```
 
-# Generate plot 1 : Individual annotations that individually meet marginal significance (confidence intervals not overlapping zero) 
+# Generate plot 1 : Individual annotations that individually meet marginal significance (confidence intervals not overlapping zero)
 
 ```{r}
 
@@ -156,7 +156,7 @@ ggsave(filename=fgwas.dir %&% output.prefix %&% ".fgwas_enrich.seperate.png",plo
 
 ```
 
-# Generate plot 2 : Joint analysis of annotations in the 'Best' model 
+# Generate plot 2 : Joint analysis of annotations in the 'Best' model
 
 ```{r}
 
@@ -168,4 +168,3 @@ write.table(x=param.df,file=fgwas.dir %&% output.prefix %&% ".fgwas_enrich.joint
 ggsave(filename=fgwas.dir %&% output.prefix %&% ".fgwas_enrich.joint.png",plot=plt2,width=6,height=6)
 
 ```
-
