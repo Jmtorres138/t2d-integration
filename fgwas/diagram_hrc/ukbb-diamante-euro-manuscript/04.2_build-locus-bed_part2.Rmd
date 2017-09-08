@@ -140,7 +140,9 @@ divide_seq <- function(chromo,start,end,width=1e6){
       build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]))
       out.df <- rbind(out.df,build.df)
     } else{
-      build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]-1))
+      #build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]-1))
+      build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]))
+
       out.df <- rbind(out.df,build.df)
     }
   }
