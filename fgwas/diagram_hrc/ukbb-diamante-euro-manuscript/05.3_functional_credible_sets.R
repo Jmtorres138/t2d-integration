@@ -1,18 +1,22 @@
 
+#Constructing functional (fgwas) credible sets from the fgwas model with the best cross validated likelihood 
+
+# Setup 
+
 "%&%" <- function(a,b) paste0(a,b)
 library("data.table")
 library("dplyr")
 library("ggplot2")
 library(GenomicRanges)
 
-serv.dir <- "/well/got2d/jason/"
+serv.dir <- "/Users/jtorres/FUSE/"
 
 work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 fgwas.output.dir <- work.dir %&% "fgwas_output/"
 
 cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
 
-pre <- fgwas.output.dir %&% "quickgo"  
+pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"  
 
 
 
@@ -32,6 +36,7 @@ get_cred <- function(dframe,cname,prob=0.99){ # 99% functional credible sets
 }
 
 
+# Determine functional credible sets (95% and 99% Credible Sets)
 
 get_credsets <- function(probthresh,segsnps.df){
   seg.vec <- sort(unique(segsnps.df$SEGNUMBER))
@@ -51,6 +56,9 @@ get_credsets <- function(probthresh,segsnps.df){
   return(out.df)
 }
 
+
+
+# Get nearest genes 
 
 
 library(GenomicFeatures)
@@ -97,39 +105,17 @@ annot_refGene <- function(cred.df,segsnps.df){
 }
 
 
+# Run 
 
 
-segsnps.df <- fread("cat " %&% work.dir %&% "sig_block_snps.bfs_0.9.txt.gz" %&% " | zmore")
+segsnps.df <- fread("cat " %&% work.dir %&% "loci_block_snps.bfs.txt.gz" %&% " | zmore")
 cred95.df <- get_credsets(0.95,segsnps.df)
 cred99.df <- get_credsets(0.99,segsnps.df)
 cred95.df <- annot_refGene(cred95.df,segsnps.df)
 cred99.df <- annot_refGene(cred99.df,segsnps.df)
-write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95_cum90.txt",sep="\t",
+write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95.txt",sep="\t",
             quote=FALSE,row.names=F)
-write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99_cum90.txt",sep="\t",
-            quote=FALSE,row.names=F)
-
-
-
-segsnps.df <- fread("cat " %&% work.dir %&% "sig_block_snps.bfs_0.8.txt.gz" %&% " | zmore")
-cred95.df <- get_credsets(0.95,segsnps.df)
-cred99.df <- get_credsets(0.99,segsnps.df)
-cred95.df <- annot_refGene(cred95.df,segsnps.df)
-cred99.df <- annot_refGene(cred99.df,segsnps.df)
-write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95_cum80.txt",sep="\t",
-            quote=FALSE,row.names=F)
-write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99_cum80.txt",sep="\t",
-            quote=FALSE,row.names=F)
-
-
-segsnps.df <- fread("cat " %&% work.dir %&% "sig_block_snps.bfs_0.5.txt.gz" %&% " | zmore")
-cred95.df <- get_credsets(0.95,segsnps.df)
-cred99.df <- get_credsets(0.99,segsnps.df)
-cred95.df <- annot_refGene(cred95.df,segsnps.df)
-cred99.df <- annot_refGene(cred99.df,segsnps.df)
-write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95_cum50.txt",sep="\t",
-            quote=FALSE,row.names=F)
-write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99_cum50.txt",sep="\t",
+write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99.txt",sep="\t",
             quote=FALSE,row.names=F)
 
 
