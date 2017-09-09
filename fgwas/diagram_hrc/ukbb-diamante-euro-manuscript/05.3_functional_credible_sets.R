@@ -9,7 +9,7 @@ library("dplyr")
 library("ggplot2")
 library(GenomicRanges)
 
-serv.dir <- "/Users/jtorres/FUSE/"
+serv.dir <- "/well/got2d/jason/"
 
 work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 fgwas.output.dir <- work.dir %&% "fgwas_output/"
