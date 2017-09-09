@@ -3,7 +3,7 @@
 '''
 Subset best fgwas model output to snps in significant blocks
 Note: First must run "Get Significant Blocks" section of file functional_credible_sets.Rmd
-Usage: python subset_to_seg.py pre sig_block_file 0.9 
+Usage: python subset_to_seg.py pre block_file 
 '''
 # libraries
 import sys,os,gzip
@@ -12,11 +12,10 @@ import sys,os,gzip
 # globals
 server_dir = "/well/got2d/jason/"
 work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
-#pre = work_dir + "fgwas_output/" + "drop-islet_state11+islet_state6+islet_state12+utr_5+islet_stretch_enhancer+promoter+distance_tss+islet_state9"
+#pre = work_dir + "fgwas_output/" + "fgwas_run_loci-partition"
 pre = sys.argv[1]
-#sig_block_file = work_dir + "sig_blocks_ppa90.txt"
+#sig_block_file = work_dir + "fgwas_blk-t2d_loci_152.txt"
 sig_block_file = sys.argv[2]
-cum_thresh = sys.argv[3]
 # functions
 
 def build_dic():
@@ -39,7 +38,7 @@ def subset_to_seg():
     fin = gzip.open(pre+".bfs.gz",'rb')
     head_list = fin.readline().strip().split()
     head_list = ["SEGNUMBER"] + head_list
-    fout = gzip.open(work_dir+"sig_block_snps.bfs"+"_"+str(cum_thresh)+".txt.gz",'wb')
+    fout = gzip.open(work_dir+"loci_block_snps.bfs.txt.gz",'wb')
     print("Writing output file...")
     fout.write(" ".join(head_list)+"\n")
     count=0
