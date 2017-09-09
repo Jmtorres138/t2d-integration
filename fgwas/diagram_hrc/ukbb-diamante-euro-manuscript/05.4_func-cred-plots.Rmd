@@ -30,8 +30,8 @@ fgwas.output.dir <- work.dir %&% "fgwas_output/"
 cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
 
 
-cred95.df <- fread(cred.set.dir%&%"fgwas_credsets_95_cum90.txt",sep="\t")
-cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99_cum90.txt",sep="\t")
+cred95.df <- fread(cred.set.dir%&%"fgwas_credsets_95.txt",sep="\t")
+cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99.txt",sep="\t")
 
 ```
 
@@ -44,6 +44,7 @@ cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99_cum90.txt",sep="\t")
 
 
 get_format_df <- function(cred.df,lev.vec){
+  seg.vec <- sort(unique(cred.df$SEGNUMBER))
   annot.vec <- names(cred.df)[9:length(names(cred.df))]
   
   out.df <- c() 
@@ -101,7 +102,8 @@ get_format_df <- function(cred.df,lev.vec){
     setTxtProgressBar(pb,i)
     seg <- seg.vec[i]
     temp.df <- filter(format.df,SEGNUMBER==seg,
-                      Annotation=="islet_state8" | Annotation=="islet_state9")
+                      Annotation=="islet_state8" | Annotation=="islet_state9" | Annotation=="islet_state11" 
+                      | Annotation=="islet_state12" )
     islet.reg.prop <- sum(temp.df$Proportion)
     gene <- filter(format.df,SEGNUMBER==seg)$Symbol[1]
     stack.df <- data.frame(Symbol=gene,SEGNUMBER=seg,islet.reg.prop)
@@ -156,7 +158,7 @@ ppa_plot <- function(format.df){
 snpcount_plot <- function(format.df){
   plt <- ggplot(data=format.df,aes(x=PlotID,y=SNPCOUNT,fill=Annotation)) + 
             geom_bar(stat="identity",color="black",size=0.2) + 
-            scale_y_continuous(breaks=seq(0,500,50)) + 
+            scale_y_continuous(breaks=seq(0,5000,200)) + 
             xlab("Locus")+
             coord_flip() + 
             scale_fill_brewer(palette="Spectral") +
@@ -172,14 +174,19 @@ snpcount_plot <- function(format.df){
 
 ```{r}
 
-lev.vec <- c("islet_state8","islet_state9","coding","islet_state5",
-             "islet_state2","islet_state1","other")
+lev.vec <- c("islet_state8","islet_state9","islet_state11","islet_state12",
+             "islet_state14","islet_state5","islet_state2","transcript","intron",
+             "distance_tss_0_5000","coding","other")
 
 summary(as.integer(table(cred99.df$SEGNUMBER)))
 form99 <- get_format_df(cred99.df,lev.vec)
 ppa.plt.99 <- ppa_plot(form99)
 sc.plt.99 <- snpcount_plot(form99)
 
+ggsave(plot=ppa.plt.99,filename=cred.set.dir%&%"functional-cred-99_ppa.png",
+       height=20,width=20)
+ggsave(plot=sc.plt.99,filename=cred.set.dir%&%"functional-cred-99_sc.png",
+       height=20,width=20)
 ```
 
 
@@ -192,6 +199,11 @@ summary(as.integer(table(cred95.df$SEGNUMBER)))
 form95 <- get_format_df(cred95.df,lev.vec)
 ppa.plt.95 <- ppa_plot(form95)
 sc.plt.95 <- snpcount_plot(form95)
+
+ggsave(plot=ppa.plt.95,filename=cred.set.dir%&% "functional-cred-95_ppa.png",
+       height=20,width=20)
+ggsave(plot=sc.plt.95,filename=cred.set.dir%&% "functional-cred-95_sc.png",
+       height=20,width=20)
 
 ```
 
