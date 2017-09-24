@@ -1,5 +1,5 @@
-# Usage: 
-# Rscript --vanilla 06.0_conditional-create-bed.R number_of_conditional_list_file 
+# Usage:
+# Rscript --vanilla 06.0_conditional-create-bed.R number_of_conditional_list_file
 # Example:
 # Rscript --vanilla 06.0_conditional-create-bed.R 1
 
@@ -25,13 +25,13 @@ size.df <- fread(work.dir%&%"hg19.chrom.sizes")
 lim.df <- fread(work.dir %&% "chromosome_limits.txt")
 gen.gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/conditioned/"
 args = commandArgs(trailingOnly=TRUE)
-number <- args[1] 
+number <- args[1]
 print(number)
 #number <- 1
 loci.list.file <- gen.gwas.dir %&% "list.for.credible.sets.cond" %&% number %&% ".txt"
 
 
-# Create region file 
+# Create region file
 
 make_loc_df <- function(){
   list.df <- fread(loci.list.file)
@@ -44,7 +44,7 @@ make_loc_df <- function(){
     s <- list.df$win.start[i]
     e <- list.df$win.end[i]
     if (s < 1){
-      list.df$win.start[i] <- 1 
+      list.df$win.start[i] <- 1
     }
     cap <- filter(lim.df,V1==c)$V3
     if (e > cap){
@@ -62,10 +62,10 @@ process_loci_gr <- function(){
   pb <- txtProgressBar(min=0,max=length(loci.gr),style=3)
   for (i in 1:length(loci.gr)){
     setTxtProgressBar(pb,i)
-    gr <- loci.gr[i] 
+    gr <- loci.gr[i]
     check <- loci.gr[loci.gr %over% gr]
     chromo <- as.character(seqnames(check))[1]
-    if (length(check)==2){ # None are greater than 2 
+    if (length(check)==2){ # None are greater than 2
       chunk1.gr <- GRanges(seqnames=chromo,IRanges(start(check)[1],start(check)[2]))
       chunk2.gr <- GRanges(seqnames=chromo,IRanges(end(check)[1],end(check)[2]))
       out.gr <- append(out.gr,chunk1.gr)
@@ -89,7 +89,7 @@ write.table(loc.df,file=region.dir%&%"t2d-loci-regions-cond" %&% number %&%".txt
             row.names=F,col.names=F)
 
 
-# Create Bed file 
+# Create Bed file
 
 process_loci_gr <- function(){
   loci.gr <- GRanges(seqnames=loc.df$CHR,IRanges(loc.df$Start,loc.df$End))
@@ -97,10 +97,10 @@ process_loci_gr <- function(){
   pb <- txtProgressBar(min=0,max=length(loci.gr),style=3)
   for (i in 1:length(loci.gr)){
     setTxtProgressBar(pb,i)
-    gr <- loci.gr[i] 
+    gr <- loci.gr[i]
     check <- loci.gr[loci.gr %over% gr]
     chromo <- as.character(seqnames(check))[1]
-    if (length(check)==2){ # None are greater than 2 
+    if (length(check)==2){ # None are greater than 2
       chunk1.gr <- GRanges(seqnames=chromo,IRanges(start(check)[1],start(check)[2]))
       chunk2.gr <- GRanges(seqnames=chromo,IRanges(end(check)[1],end(check)[2]))
       out.gr <- append(out.gr,chunk1.gr)
@@ -119,14 +119,14 @@ divide_seq <- function(chromo,start,end,width=1e6){
   out.df <- c()
   for (i in 1:length(vec)){
     if (i == length(vec)){
-      pass <- TRUE 
+      pass <- TRUE
     } else if (i == (length(vec)-1)){
       build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]))
       out.df <- rbind(out.df,build.df)
     } else{
       #build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]-1))
       build.df <- data.frame("CHR"=chromo,"Start"=vec[i],"End"=(vec[i+1]))
-      
+
       out.df <- rbind(out.df,build.df)
     }
   }
@@ -139,7 +139,7 @@ get_bed_df <- function(){
   #                     "Start"=start(disjoin.gr),
   #                     "End"=end(disjoin.gr))
   lim.gr <- GRanges(seqnames=lim.df$V1,IRanges(lim.df$V2,lim.df$V3))
-  
+
   tot.gr <- sort(sortSeqlevels(append(lim.gr,loci.gr)))
   disjoin.gr <- disjoin(tot.gr)
   dis.df <- data.frame("CHR"=seqnames(disjoin.gr),
@@ -162,7 +162,7 @@ get_bed_df <- function(){
   }
   out.df$Start <- out.df$Start - 1
   out.df$End <- out.df$End - 1
-  
+
   return(out.df)
 }
 
