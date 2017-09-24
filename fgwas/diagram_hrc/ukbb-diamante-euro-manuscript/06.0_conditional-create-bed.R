@@ -25,16 +25,17 @@ size.df <- fread(work.dir%&%"hg19.chrom.sizes")
 lim.df <- fread(work.dir %&% "chromosome_limits.txt")
 gen.gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/conditioned/"
 args = commandArgs(trailingOnly=TRUE)
-number <- args[1]
-print(number)
-#number <- 1
-loci.list.file <- gen.gwas.dir %&% "list.for.credible.sets.cond" %&% number %&% ".txt"
+
+loc.id <- args[1]
+
+#loci.list.file <- gen.gwas.dir %&% "list.for.credible.sets.cond" %&% number %&% ".txt"
+loci.list.file <- gen.gwas.dir %&% "list.for.credible.sets.ALL.txt"
 
 
 # Create region file
 
-make_loc_df <- function(){
-  list.df <- fread(loci.list.file)
+make_loc_df <- function(loc.id){
+  list.df <- fread(loci.list.file) %>% filter(V3==loc.id)
   names(list.df) <- c("CHR","POS","LOCUS")
   list.df$CHR <- "chr"%&%list.df$CHR
   list.df$win.start <- as.integer(list.df$POS - 500000)
@@ -56,7 +57,7 @@ make_loc_df <- function(){
 }
 
 process_loci_gr <- function(){
-  loc.df <- make_loc_df()
+  loc.df <- make_loc_df(loc.id)
   loci.gr <- GRanges(seqnames=loc.df$CHR,IRanges(loc.df$win.start,loc.df$win.end))
   out.gr <- GRanges()
   pb <- txtProgressBar(min=0,max=length(loci.gr),style=3)
@@ -77,7 +78,7 @@ process_loci_gr <- function(){
   return(reduce(out.gr))
 }
 
-loc.df <- make_loc_df()
+loc.df <- make_loc_df(loc.id)
 
 loc.gr <- process_loci_gr()
 loc.df <- data.frame("CHR"=seqnames(loc.gr),
@@ -85,7 +86,7 @@ loc.df <- data.frame("CHR"=seqnames(loc.gr),
                      "End"=end(loc.gr))
 loc.df$CHR <- as.character(loc.df$CHR)
 
-write.table(loc.df,file=region.dir%&%"t2d-loci-regions-cond" %&% number %&%".txt",sep="\t",quote=FALSE,
+write.table(loc.df,file=region.dir%&%"t2d-loci-regions-" %&% loc.id %&%".txt",sep="\t",quote=FALSE,
             row.names=F,col.names=F)
 
 
@@ -169,5 +170,5 @@ get_bed_df <- function(){
 
 bed.df <- get_bed_df()
 bed.df$CHR <- as.character(bed.df$CHR)
-write.table(bed.df,file=part.dir%&%"loci-partition-cond" %&% number %&% ".bed",sep="\t",quote=FALSE,
+write.table(bed.df,file=part.dir%&%"loci-partition-" %&% loc.id %&% ".bed",sep="\t",quote=FALSE,
             row.names=F,col.names=F)
