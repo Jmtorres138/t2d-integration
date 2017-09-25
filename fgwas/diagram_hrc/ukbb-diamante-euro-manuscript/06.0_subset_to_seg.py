@@ -1,7 +1,7 @@
 #!/usr/bin/python -O
 # Jason Matthew Torres
 '''
-Usage: python 06.0_subset_to_seg.py pre loc_id
+Usage: python 06.0_subset_to_seg.py loc_id
 '''
 # libraries
 import sys,os,gzip

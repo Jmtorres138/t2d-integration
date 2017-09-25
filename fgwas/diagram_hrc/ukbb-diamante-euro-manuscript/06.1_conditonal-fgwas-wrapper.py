@@ -30,6 +30,8 @@ best_annot_bed = in_dir+"best_anno_input.bed"
 
 best_param_file = home_dir + "fgwas_output/best-joint-model.params"
 
+loc_ref_file = "/well/got2d/jason/reference/gwas/diamante-ukbb_hrc/conditioned/list.for.credible.sets.ALL.txt"
+
 #input_file=in_dir+"ukbb_diamante-euro.fgwas.gz" # Optional: Run 01.1 script and use this for abbreviated annotations: in_dir+"diagram_hrc.renamed.fgwas.gz"
 #start_index = 9 #0-based index of column in fgwas input file where annotations start
 #job_prefix = "ukbb_"
@@ -63,7 +65,6 @@ def build_all_inputs():
         print f
         run_fgwas_input_job(gwas_bed_dir+f)
 
-
 def get_annot_list(best_param_file):
     out_list = []
     fin = open(best_param_file,'r')
@@ -87,7 +88,7 @@ def run_loc_job(loc_id):
         fgwas_input_file = in_dir + "ukbb_diamante-euro.cond" + str(cond) + ".fgwas.gz"
     bed_part_file = part_dir + "loci-partition-"+loc_id + ".bed"
 
-    loc_out_dir = out_dir + loc_id
+    loc_out_dir = out_dir + loc_id + "/"
     if os.path.isdir(loc_out_dir)==False:
         os.mkdir(loc_out_dir)
 
@@ -109,6 +110,18 @@ def run_loc_job(loc_id):
                         "-w", "+".join(annot_list), "-print","-o", loc_out_dir+"fgwas_run_loci-partition"]
     command2 = " ".join(command_list2)
 
+    command_list3 = [rscript, "--vanilla",home_dir+"06.0_get-cond-block.R",loc_id]
+    command3 = " ".join(command_list3)
+
+    command_list4 = [python,home_dir+"06.0_subset_to_seg.py",loc_id]
+    command4 = " ".join(command_list4)
+
+    command_list5 = [rscript, "--vanilla",home_dir+"06.0_functional_credible_sets.R",loc_id]
+    command5 = " ".join(command_list5)
+
+    command_list6 = ["rm", loc_out_dir+"fgwas_run_loci-partition.bfs.gz"]
+    command6 = " ".join(command_list6)
+
     script='''
 #$ -N job_%s
 #$ -pe shmem 1
@@ -117,22 +130,40 @@ def run_loc_job(loc_id):
 #$ -e %s%s.error
 #$ -o %s%s.out
 echo "start time" `date`
+#%s
+#%s
 %s
-%s
+#%s
+#%s
+#%s
 echo "end time" `date`
         ''' % (loc_id, log_dir,loc_id,log_dir,loc_id,
-        command1, command2)
+        command1, command2, command3, command4, command5, command6)
     fout.write(script)
     fout.close()
     call = ["qsub", job_file]
     sp.check_call(call)
 
+def run_all_loci():
+    loc_list = []
+    fin = open(loc_ref_file,'r')
+    for line in fin:
+        l = line.strip().split()
+        loc = l[2]
+        loc_list.append(loc)
+    fin.close()
+    #for loc in loc_list:
+    #    run_loc_job(loc)
+    print loc_list
+
+
 def main():
     #build_all_inputs()
 
-    loc_id = "137_1"
-    run_loc_job(loc_id)
+    #loc_id = "137_1"
+    #run_loc_job(loc_id)
 
+    run_all_loci()
 
 
 if (__name__=="__main__"): main()
