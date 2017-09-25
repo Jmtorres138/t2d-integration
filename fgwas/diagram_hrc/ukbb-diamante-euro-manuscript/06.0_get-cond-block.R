@@ -23,9 +23,6 @@ pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"
 #region.file <- work.dir%&%"t2d-loci-regions.txt"
 region.file <- work.dir %&% "region_files/" %&% "t2d-loci-regions-" %&% loc.id %&% ".txt"
 
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
-
-
 
 get_loci_blocks <- function(save.prefix){
   loc.df <- fread(region.file)
