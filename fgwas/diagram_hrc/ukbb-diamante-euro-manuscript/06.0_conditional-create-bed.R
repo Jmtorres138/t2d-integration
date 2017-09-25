@@ -1,7 +1,8 @@
 # Usage:
-# Rscript --vanilla 06.0_conditional-create-bed.R number_of_conditional_list_file
+# Rscript --vanilla 06.0_conditional-create-bed.R number_of_conditional_list_file/or locus id 
 # Example:
-# Rscript --vanilla 06.0_conditional-create-bed.R 1
+# Rscript --vanilla 06.0_conditional-create-bed.R cond1
+# Rscript --vanilla 06.0_conditional-create-bed.R 188_2
 
 "%&%" <- function(a,b) paste0(a,b)
 library("data.table")
@@ -26,16 +27,23 @@ lim.df <- fread(work.dir %&% "chromosome_limits.txt")
 gen.gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/conditioned/"
 args = commandArgs(trailingOnly=TRUE)
 
-loc.id <- args[1]
+loc.id <- args[1] # Can either be a locus id (i.e. 188_2) or condition (i.e. cond2)
 
 #loci.list.file <- gen.gwas.dir %&% "list.for.credible.sets.cond" %&% number %&% ".txt"
 loci.list.file <- gen.gwas.dir %&% "list.for.credible.sets.ALL.txt"
 
+manual.vec <- c("87_1", "132_1", "133_1", "86_1")
 
 # Create region file
 
 make_loc_df <- function(loc.id){
-  list.df <- fread(loci.list.file) %>% filter(V3==loc.id)
+  if (grepl("cond",loc.id)==TRUE){
+    cond.num <- gsub("cond","",loc.id)
+    list.df <- fread(loci.list.file) %>% filter(grepl("_"%&%cond.num,V3))
+    list.df <- filter(list.df,!(V3 %in% manual.vec))
+  } else{
+    list.df <- fread(loci.list.file) %>% filter(V3==loc.id)
+  }
   names(list.df) <- c("CHR","POS","LOCUS")
   list.df$CHR <- "chr"%&%list.df$CHR
   list.df$win.start <- as.integer(list.df$POS - 500000)
@@ -53,6 +61,7 @@ make_loc_df <- function(loc.id){
     }
   }
   list.df$win.start <- as.integer(list.df$win.start)
+  #list.df$len <- list.df$win.end - list.df$win.start
   return(list.df)
 }
 
