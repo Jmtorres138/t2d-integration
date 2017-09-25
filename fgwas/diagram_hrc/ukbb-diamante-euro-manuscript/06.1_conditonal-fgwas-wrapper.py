@@ -79,12 +79,16 @@ def get_annot_list(best_param_file):
     return(out_list)
 
 def run_loc_job(loc_id):
-
+    # Note: loc_id can be locus id (e.g. "188_2") or condition ref name (e.g. "cond2")
+    
     check_list = ["87_1", "132_1", "133_1", "86_1"]
     if loc_id in check_list:
         fgwas_input_file = in_dir + "ukbb_diamante-euro." + loci_id + ".fgwas.gz"
-    else:
+    elif "_" in loc_id:
         cond = loc_id.split("_")[1]
+        fgwas_input_file = in_dir + "ukbb_diamante-euro.cond" + str(cond) + ".fgwas.gz"
+    else:
+        cond = loc_id.split("cond")[1]
         fgwas_input_file = in_dir + "ukbb_diamante-euro.cond" + str(cond) + ".fgwas.gz"
     bed_part_file = part_dir + "loci-partition-"+loc_id + ".bed"
 
