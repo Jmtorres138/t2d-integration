@@ -1,0 +1,199 @@
+---
+title: "credible intervals"
+author: "Jason Torres"
+date: "September 26, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("dplyr")
+library("ggplot2")
+library(GenomicRanges)
+
+serv.dir <- "/Users/jtorres/FUSE/"
+
+gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/"
+
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+cond.out.dir <- work.dir %&% "conditional/fgwas_output_files/"
+
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
+
+
+manual.vec <- c("87_1", "132_1", "133_1", "86_1")
+
+```
+
+
+Build (genetic) locus reference data frame 
+
+
+```{r}
+
+build_loc_ref_df <- function(){
+  non.cond.df <- fread(gwas.dir %&% "list.of.loci.single.signal.AMah31082017.txt")
+  names(non.cond.df) <- c("CHR","POS","Locus.ID")
+  cond.df <- fread(gwas.dir %&% "conditioned/list.for.credible.sets.ALL.txt")
+  names(cond.df) <- c("CHR","POS","Locus.ID")
+  out.df <- rbind(non.cond.df,cond.df) %>% arrange(CHR,POS)
+  out.df <- out.df[!duplicated(out.df),] # no duplicates but just in case 
+  return(out.df) 
+}
+
+```
+
+
+# Functions 
+
+Function to get matching block info for each loc.id 
+
+```{r}
+
+get_block_info <- function(loc.id){
+  if (loc.id %in% manual.vec){
+    # manual
+    blk.df <- fread(cond.out.dir %&% loc.id %&%"/" %&% "fgwas_blk.txt")
+  } else if (grepl("_",loc.id)){
+    # conditional
+    cond.num <- strsplit(loc.id,split="_")[[1]][2]
+    blk.df <- fread(cond.out.dir %&% "cond"%&%cond.num%&%"/" %&% "fgwas_blk.txt")
+  } else if (loc.id %in% loc.ref.df$Locus.ID){
+    # single
+    blk.df <- fread(work.dir %&% "fgwas_blk-t2d_loci_152.txt")
+  } else {
+    stop("Not a valid entry")
+  }
+  loc.chrom <- "chr" %&% filter(loc.ref.df,Locus.ID==loc.id)$CHR
+  loc.pos <- filter(loc.ref.df,Locus.ID==loc.id)$POS
+  blk <- filter(blk.df,CHR==loc.chrom,blk.start<=loc.pos,blk.end>=loc.pos)
+  out.df <- cbind("Locus.ID"=rep(loc.id,dim(blk)[1]),blk)
+  return(out.df)
+}
+
+build_block_df <- function(loc.ref.df){
+  loc.ids <- loc.ref.df$Locus.ID
+  #keep.index <- sapply(1:length(loc.ids),function(i){!grepl("_2",loc.ids[i])}) # temporary as condition 2 still running 
+  #loc.ids <- loc.ids[keep.index] # temporary as above 
+  out.df <- c()
+  print(length(unique(loc.ids)))
+  pb <- txtProgressBar(min=0,max=length(loc.ids),style=3)
+  for (i in 1:length(loc.ids)){
+    setTxtProgressBar(pb,i)
+    loc.id <- loc.ids[i]
+    build.df <- get_block_info(loc.id)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$Locus.ID <- as.character(out.df$Locus.ID)
+  out.df$blk.len <- out.df$blk.end - out.df$blk.start
+  return(out.df)
+}
+
+
+```
+
+Build credible set file with correct Locus ID information 
+
+```{r}
+
+get_fcred_set <- function(loc.id, seg, credset = "99"){
+  if (loc.id %in% manual.vec){
+    # manual
+    cred.df <- fread(cred.set.dir %&% "fgwas_credsets_" %&% credset %&% "-" %&% loc.id %&% ".txt")
+  } else if (grepl("_",loc.id)){
+    # conditional
+    cond.num <- strsplit(loc.id,split="_")[[1]][2]
+    cred.df <- fread(cred.set.dir %&% "fgwas_credsets_" %&% credset %&% "-cond" %&% cond.num %&% ".txt")
+  } else if (loc.id %in% loc.ref.df$Locus.ID){
+    # single
+    cred.df <- fread(cred.set.dir %&% "fgwas_credsets_" %&% credset %&% ".txt")
+  } else {
+    stop("Not a valid entry")
+  }  
+  out.df <- filter(cred.df,SEGNUMBER==seg)
+  out.df <- cbind("Locus.ID"=rep(loc.id,dim(out.df)[1]),out.df)
+  out.df$Locus.ID <- as.character(out.df$Locus.ID)
+  return(out.df)
+}
+
+build_appended_creddf <- function(block.df){
+  out.df <- c() 
+  pb <- txtProgressBar(min=0,max=dim(block.df)[1],style=3)
+  for (i in 1:dim(block.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc.id <- block.df$Locus.ID[i]
+    seg <- block.df$SEGNUMBER[i]
+    build.df <- get_fcred_set(loc.id,seg,credset="99")
+    out.df <- rbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+```
+
+
+# Generate data frames 
+
+```{r}
+
+loc.ref.df <- build_loc_ref_df()
+block.df <- build_block_df(loc.ref.df)
+fcred.df <- build_appended_creddf(block.df)
+
+block.df$fcred.num <- sapply(1:dim(block.df)[1],function(i){
+  loc.id <- block.df$Locus.ID[i]
+  sub.df <- filter(fcred.df,Locus.ID==loc.id)
+  fcred.num <- dim(sub.df)[1]
+  return(fcred.num)
+})
+block.df$fcred.start <- sapply(1:dim(block.df)[1],function(i){
+  loc.id <- block.df$Locus.ID[i]
+  sub.df <- filter(fcred.df,Locus.ID==loc.id)
+  fcred.start <- min(sub.df$POS)
+  return(fcred.start)
+})
+block.df$fcred.end <- sapply(1:dim(block.df)[1],function(i){
+  loc.id <- block.df$Locus.ID[i]
+  sub.df <- filter(fcred.df,Locus.ID==loc.id)
+  fcred.end <- max(sub.df$POS)
+  return(fcred.end)
+})
+block.df$fcred.len <- sapply(1:dim(block.df)[1],function(i){
+  loc.id <- block.df$Locus.ID[i]
+  sub.df <- filter(fcred.df,Locus.ID==loc.id)
+  fcred.start <- min(sub.df$POS);fcred.end <- max(sub.df$POS)
+  fcred.len <- fcred.end - fcred.start
+  return(fcred.len)
+})
+block.df$refseq <- sapply(1:dim(block.df)[1],function(i){
+  loc.id <- block.df$Locus.ID[i]
+  refseq <- filter(fcred.df,Locus.ID==loc.id)$symbol[1]
+  return(refseq)
+})
+
+sum(block.df$fcred.num==1) # 54 credible sets fine-mapped to a single variant 
+#t <- arrange(block.df,desc(fcred.len))
+```
+
+
+
+```{r}
+
+missing.loci <- loc.ref.df$Locus.ID[!(loc.ref.df$Locus.ID %in% block.df$Locus.ID)]
+#"20_1"  "86_2"  "87_2"  "132_3" "132_4" "132_5" "133_3" "133_4" "133_5" "163_2" "164_2" "243"   "244" 
+```
+
+
+
+
+```{r}
+```
+
