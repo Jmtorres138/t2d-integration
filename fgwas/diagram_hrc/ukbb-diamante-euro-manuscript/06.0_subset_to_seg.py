@@ -48,8 +48,8 @@ def subset_to_seg():
     count=0
     for line in fin:
         count+=1
-        sys.stdout.write("\r%d" % count)
-        sys.stdout.flush()
+        #sys.stdout.write("\r%d" % count)
+        #sys.stdout.flush()
         l = line.strip().split()
         snpid, chrom, pos = l[0],l[1],int(l[2])
         try:
