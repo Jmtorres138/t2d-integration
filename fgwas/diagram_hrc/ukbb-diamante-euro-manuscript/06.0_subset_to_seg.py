@@ -12,9 +12,9 @@ server_dir = "/well/got2d/jason/"
 work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 
 loc_id = sys.argv[1]
-pre = work_dir + "conditional/fgwas_input_files/" + loc_id + "/" + "fgwas_run_loci-partition"
-sig_block_file = work_dir + "conditional/fgwas_input_files/" + loc_id + "/" + "fgwas_blk.txt"
-output_file = work_dir+"conditional/fgwas_input_files/" + loc_id + "/" +"loci_block_snps.bfs.txt.gz"
+pre = work_dir + "conditional/fgwas_output_files/" + loc_id + "/" + "fgwas_run_loci-partition"
+sig_block_file = work_dir + "conditional/fgwas_output_files/" + loc_id + "/" + "fgwas_blk.txt"
+output_file = work_dir+"conditional/fgwas_output_files/" + loc_id + "/" +"loci_block_snps.bfs.txt.gz"
 
 #pre = work_dir + "fgwas_output/" + "fgwas_run_loci-partition"
 #pre = sys.argv[1]
