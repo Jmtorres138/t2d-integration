@@ -49,7 +49,7 @@ get_loci_blocks <- function(save.prefix){
   names(sig.blk.df) <- c("SEGNUMBER","CHR","blk.start","blk.end","blk.PPA","blk.NSNP")
 
 
-  write.table(x=sig.blk.df,file = work.dir %&% save.prefix %&%".txt",
+  write.table(x=sig.blk.df,file = save.prefix %&%".txt",
               sep="\t",quote=FALSE,row.names=FALSE)
   return(sig.blk.df)
 }
