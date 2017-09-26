@@ -15,7 +15,7 @@ library(GenomicRanges)
 serv.dir <- "/well/got2d/jason/"
 
 work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
-fgwas.output.dir <- work.dir %&% "conditional/fgwas_input_files/" %&% loc.id %&% "/"
+fgwas.output.dir <- work.dir %&% "conditional/fgwas_output_files/" %&% loc.id %&% "/"
 #pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"  
 
 cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
