@@ -35,7 +35,7 @@ best_param_file = home_dir + "fgwas_output/best-joint-model.params"
 
 loc_ref_file = "/well/got2d/jason/reference/gwas/diamante-ukbb_hrc/conditioned/list.for.credible.sets.ALL.txt"
 
-# functions 
+# functions
 
 def run_fgwas_input_job(gwas_bed):
     ref_name = gwas_bed.split("ukbb_diamante-euro.")[1].split(".bed")[0]
@@ -132,7 +132,7 @@ def run_loc_job(loc_id):
 #$ -N job_%s
 #$ -pe shmem 1
 #$ -P mccarthy.prjc
-#$ -q long.qc
+#$ -q short.qc
 #$ -e %s%s.error
 #$ -o %s%s.out
 #$ -V
