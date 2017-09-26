@@ -16,7 +16,7 @@ import moniter_rescomp_jobs
 
 # globals
 python = "/apps/well/python/2.7.11/bin/python"
-rscript = "/apps/well/R/3.3.1/bin/Rscript"
+rscript = "/apps/well/R/3.3.1/bin/Rscript" #"/apps/well/R/3.3.1/bin/Rscript"
 fgwas = "LD_LIBRARY_PATH=/apps/well/gsl/2.2.1-gcc4.9.3/lib /users/mccarthy/jmtorres/software/fgwas-0.3.6/bin/fgwas"
 home_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 part_dir = home_dir + "partition_bedfiles/"
@@ -24,6 +24,7 @@ in_dir=home_dir+"conditional/fgwas_input_files/"
 out_dir = home_dir + "conditional/fgwas_output_files/"
 job_dir=home_dir+"jobs/"
 log_dir=home_dir+"logs/"
+manual_list = ["87_1", "132_1", "133_1", "86_1"]
 
 gwas_bed_dir = "/well/got2d/jason/reference/gwas/diamante-ukbb_hrc/conditioned/gwas_bedfiles/"
 best_annot_bed = in_dir+"best_anno_input.bed"
@@ -80,10 +81,8 @@ def get_annot_list(best_param_file):
 
 def run_loc_job(loc_id):
     # Note: loc_id can be locus id (e.g. "188_2") or condition ref name (e.g. "cond2")
-    
-    check_list = ["87_1", "132_1", "133_1", "86_1"]
-    if loc_id in check_list:
-        fgwas_input_file = in_dir + "ukbb_diamante-euro." + loci_id + ".fgwas.gz"
+    if loc_id in manual_list:
+        fgwas_input_file = in_dir + "ukbb_diamante-euro." + loc_id + ".fgwas.gz"
     elif "_" in loc_id:
         cond = loc_id.split("_")[1]
         fgwas_input_file = in_dir + "ukbb_diamante-euro.cond" + str(cond) + ".fgwas.gz"
@@ -130,14 +129,15 @@ def run_loc_job(loc_id):
 #$ -N job_%s
 #$ -pe shmem 1
 #$ -P mccarthy.prjc
-#$ -q short.qc
+#$ -q long.qc
 #$ -e %s%s.error
 #$ -o %s%s.out
+#$ -V
 echo "start time" `date`
 #%s
 #%s
 %s
-#%s
+%s
 #%s
 #%s
 echo "end time" `date`
@@ -150,24 +150,34 @@ echo "end time" `date`
 
 def run_all_loci():
     loc_list = []
-    fin = open(loc_ref_file,'r')
-    for line in fin:
-        l = line.strip().split()
-        loc = l[2]
-        loc_list.append(loc)
-    fin.close()
-    #for loc in loc_list:
-    #    run_loc_job(loc)
+#    for i in range(1,11):
+    for i in [4,5,6,7,8,9,10]:
+        loc_list.append("cond"+str(i))
+    loc_list = loc_list + manual_list
+    for loc in loc_list:
+        run_loc_job(loc)
     print loc_list
 
+def run_cred_sets():
+    loc_list = []
+#    for i in range(1,11):
+    for i in [4,5,6,7,8,9,10]:
+        loc_list.append("cond"+str(i))
+    loc_list = loc_list + manual_list
+    for loc in loc_list:
+        command_list5 = [rscript, "--vanilla",home_dir+"06.0_functional_credible_sets.R",loc]
+        #command5 = " ".join(command_list5)
+        sp.check_call(command_list5)
+    print loc_list
 
 def main():
     #build_all_inputs()
 
-    #loc_id = "137_1"
-    #run_loc_job(loc_id)
 
-    run_all_loci()
+    #run_all_loci()
+    run_cred_sets()
+
+
 
 
 if (__name__=="__main__"): main()
