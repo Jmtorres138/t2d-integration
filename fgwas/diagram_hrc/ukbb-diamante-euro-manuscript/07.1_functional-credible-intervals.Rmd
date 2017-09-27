@@ -9,9 +9,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+NOTE: Here block (blk) positions correspond to the SNP start/end coordinates whereas chunk represents the coordinates in the partition BED file per se 
+
 # Setup 
 
 ```{r}
+
 
 "%&%" <- function(a,b) paste0(a,b)
 library("data.table")
@@ -26,10 +30,12 @@ gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/"
 work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 cond.out.dir <- work.dir %&% "conditional/fgwas_output_files/"
 
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
-
+cred.set.dir <- work.dir %&% "credible_sets/"
+bed.dir <- work.dir %&% "partition_bedfiles/"
 
 manual.vec <- c("87_1", "132_1", "133_1", "86_1")
+missing.vec <- c("20_1","86_2","87_2","132_3","132_4","132_5",
+                 "133_3","133_4","133_5","163_2","164_2")#,"243","244")
 
 ```
 
@@ -59,23 +65,41 @@ Function to get matching block info for each loc.id
 ```{r}
 
 get_block_info <- function(loc.id){
-  if (loc.id %in% manual.vec){
+  if (loc.id %in% manual.vec | loc.id %in% missing.vec){
     # manual
     blk.df <- fread(cond.out.dir %&% loc.id %&%"/" %&% "fgwas_blk.txt")
+    bed.df <- fread(bed.dir %&% "loci-partition-" %&% loc.id %&% ".bed")
   } else if (grepl("_",loc.id)){
     # conditional
     cond.num <- strsplit(loc.id,split="_")[[1]][2]
     blk.df <- fread(cond.out.dir %&% "cond"%&%cond.num%&%"/" %&% "fgwas_blk.txt")
+    bed.df <- fread(bed.dir %&% "loci-partition-cond" %&% cond.num %&% ".bed")
   } else if (loc.id %in% loc.ref.df$Locus.ID){
     # single
     blk.df <- fread(work.dir %&% "fgwas_blk-t2d_loci_152.txt")
+    bed.df <- fread(work.dir %&% "loci-partition.bed")
   } else {
     stop("Not a valid entry")
   }
   loc.chrom <- "chr" %&% filter(loc.ref.df,Locus.ID==loc.id)$CHR
   loc.pos <- filter(loc.ref.df,Locus.ID==loc.id)$POS
   blk <- filter(blk.df,CHR==loc.chrom,blk.start<=loc.pos,blk.end>=loc.pos)
-  out.df <- cbind("Locus.ID"=rep(loc.id,dim(blk)[1]),blk)
+  if (dim(blk)[1]==0){
+    blk <- data.frame("SEGNUMBER"=NA,"CHR"=NA,"blk.start"=NA,"blk.end"=NA,
+    "blk.PPA"=NA,"blk.NSNP"=NA)
+  }
+  out.df <- cbind("Locus.ID"=rep(loc.id,dim(blk)[1]),"loc.pos"=rep(loc.pos,dim(blk)[1]),blk)
+  cnk <- filter(bed.df,V1==loc.chrom,V2<=loc.pos,V3>=loc.pos)
+  #print(loc.id);print(loc.pos);print(blk);print(cnk)
+  if (dim(cnk)[1] > 0){
+    out.df$chunk.start <- cnk$V2
+    out.df$chunk.end <- cnk$V3
+    out.df$chunk.len <- cnk$V3-cnk$V2    
+  } else{
+    out.df$chunk.start <- NA
+    out.df$chunk.end <- NA
+    out.df$chunk.len <- NA    
+  }
   return(out.df)
 }
 
@@ -158,20 +182,20 @@ block.df$fcred.start <- sapply(1:dim(block.df)[1],function(i){
   loc.id <- block.df$Locus.ID[i]
   sub.df <- filter(fcred.df,Locus.ID==loc.id)
   fcred.start <- min(sub.df$POS)
-  return(fcred.start)
+  return(as.integer(fcred.start))
 })
 block.df$fcred.end <- sapply(1:dim(block.df)[1],function(i){
   loc.id <- block.df$Locus.ID[i]
   sub.df <- filter(fcred.df,Locus.ID==loc.id)
   fcred.end <- max(sub.df$POS)
-  return(fcred.end)
+  return(as.integer(fcred.end))
 })
 block.df$fcred.len <- sapply(1:dim(block.df)[1],function(i){
   loc.id <- block.df$Locus.ID[i]
   sub.df <- filter(fcred.df,Locus.ID==loc.id)
   fcred.start <- min(sub.df$POS);fcred.end <- max(sub.df$POS)
   fcred.len <- fcred.end - fcred.start
-  return(fcred.len)
+  return(as.integer(fcred.len))
 })
 block.df$refseq <- sapply(1:dim(block.df)[1],function(i){
   loc.id <- block.df$Locus.ID[i]
@@ -179,16 +203,127 @@ block.df$refseq <- sapply(1:dim(block.df)[1],function(i){
   return(refseq)
 })
 
-sum(block.df$fcred.num==1) # 54 credible sets fine-mapped to a single variant 
-#t <- arrange(block.df,desc(fcred.len))
+write.table(x=block.df,file=plot.dir %&% "results_blocks.txt",sep="\t",
+            quote=F,row.names=F)
+write.table(x=fcred.df,file=plot.dir %&% "results_func-cred-sets.txt",sep="\t",
+            quote=F,row.names=F)
 ```
+
+
+Save table plots 
+
+```{r}
+
+library("gridExtra")
+library("grid")
+
+plot.dir <- "/Users/jtorres/Google Drive/Science/Projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/table_plots/"
+
+tab.df <- dplyr::select(block.df,one_of("CHR","loc.pos","Locus.ID","refseq","fcred.start","fcred.end","fcred.num"))
+names(tab.df) <- c("Chrom","Lead SNP position","Locus ID", "RefSeq",
+                   "Interval start", "Interval end","Number of variants")
+tab.df1 <- tab.df[1:50,]
+tab.df2 <- tab.df[51:100,]
+tab.df3 <- tab.df[101:150,]
+tab.df4 <- tab.df[151:200,]
+tab.df5 <- tab.df[201:250,]
+tab.df6 <- tab.df[251:300,]
+tab.df7 <- tab.df[301:350,]
+tab.df8 <- tab.df[351:408,]
+
+
+tab1 <- tableGrob(tab.df1)
+tab2 <- tableGrob(tab.df2)
+tab3 <- tableGrob(tab.df3)
+tab4 <- tableGrob(tab.df4)
+tab5 <- tableGrob(tab.df5)
+tab6 <- tableGrob(tab.df6)
+tab7 <- tableGrob(tab.df7)
+tab8 <- tableGrob(tab.df8)
+
+ggsave(tab1,filename = plot.dir %&% "fcred_table_part1.png",height=20,width=12)
+ggsave(tab2,filename = plot.dir %&% "fcred_table_part2.png",height=20,width=12)
+ggsave(tab3,filename = plot.dir %&% "fcred_table_part3.png",height=20,width=12)
+ggsave(tab4,filename = plot.dir %&% "fcred_table_part4.png",height=20,width=12)
+ggsave(tab5,filename = plot.dir %&% "fcred_table_part5.png",height=20,width=12)
+ggsave(tab6,filename = plot.dir %&% "fcred_table_part6.png",height=20,width=12)
+ggsave(tab7,filename = plot.dir %&% "fcred_table_part7.png",height=20,width=12)
+ggsave(tab8,filename = plot.dir %&% "fcred_table_part8.png",height=20,width=12)
+
+write.table(x=block.df,file=plot.dir %&% "results_blocks.txt",sep="\t",
+            quote=F,row.names=F)
+write.table(x=fcred.df,file=plot.dir %&% "results_func-cred-sets.txt",sep="\t",
+            quote=F,row.names=F)
+
+```
+
+
+# EDA 
+
+```{r}
+library("ggplot2")
+
+ggplot(data=block.df,aes(x=chunk.len,y=blk.len)) + 
+  geom_point() + geom_abline(slope=1,intercept = 0,color="red") + theme_bw()  
+
+ggplot(data=block.df,aes(x=chunk.len,y=blk.PPA)) + 
+  geom_point() + geom_abline(slope=1,intercept = 0,color="red") + theme_bw()  
+# Chunk length doesn't influence block PPA (regression p-value: 0.7002)
+
+ggplot(data=block.df,aes(x=chunk.len,y=fcred.num)) + 
+  geom_point() + geom_abline(slope=1,intercept = 0,color="red") + theme_bw()  
+# Chunk length doesn't influence number of snps in functional credible set (regression p-value: p-value: 0.7427)
+
+summary(block.df$chunk.len)
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 546500 1000000 1000000  985600 1000000 1000000 
+summary(filter(block.df,fcred.num!=0)$fcred.num)
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   1.00    3.00   13.00   86.53   47.00 5143.00 
+sub <- filter(block.df,chunk.len<1000000)
+dim(sub)[1] # 28
+summary(sub$chunk.len)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 546500  710800  757500  790100  913800  983300 
+summary(sub$fcred.num) # Includes 243 and 244 
+
+sum(block.df$fcred.num==1)
+# 56
+sum(block.df$fcred.num==2)
+# 30
+sum(block.df$fcred.num==3)
+# 21
+sum(block.df$fcred.num==4)
+# 15
+sum(block.df$fcred.num<=10)
+# 182
+> 
+
+```
+
+
+
+
+
 
 
 
 ```{r}
 
-missing.loci <- loc.ref.df$Locus.ID[!(loc.ref.df$Locus.ID %in% block.df$Locus.ID)]
+#missing.loci <- loc.ref.df$Locus.ID[!(loc.ref.df$Locus.ID %in% block.df$Locus.ID)]
 #"20_1"  "86_2"  "87_2"  "132_3" "132_4" "132_5" "133_3" "133_4" "133_5" "163_2" "164_2" "243"   "244" 
+
+
+#sum(block.df$fcred.num==1) # 54 credible sets fine-mapped to a single variant 
+#t <- arrange(block.df,desc(fcred.len))
+#summary(block.df$fcred.num)
+#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   1.00    3.00   13.00   88.39   48.00 5143.00 
+#plot(block.df$blk.len,block.df$fcred.len)
+#abline(a=0,b=1)
+
+#59307725
+#1 chr2 58807724 59807724
 ```
 
 
