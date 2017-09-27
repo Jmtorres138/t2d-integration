@@ -42,6 +42,10 @@ get_loci_blocks <- function(save.prefix){
     build.df <- filter(blk.df,chr%in%chrom.vec,st%in%start.vec,sp%in%end.vec)
     SEGNUMBER <- rep(i,length(chrom.vec))
     build.df <- cbind(SEGNUMBER,build.df) %>% arrange(desc(PPA))
+    if (dim(build.df)[1]>1){
+      ref.point <- (end(loc.gr[i]) + start(loc.gr[i]))/2
+      build.df <- filter(build.df,st<=ref.point,sp>=ref.point)
+    }
     out.df <- rbind(out.df,build.df[1,])
   }
   sig.blk.df <- dplyr::select(out.df,one_of("SEGNUMBER","chr","st","sp","PPA","NSNP"))
