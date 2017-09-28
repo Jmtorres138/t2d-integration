@@ -3,7 +3,7 @@
 '''
 Subset best fgwas model output to snps in significant blocks
 Note: First must run "Get Significant Blocks" section of file functional_credible_sets.Rmd
-Usage: python subset_to_seg.py pre block_file 
+Usage: python subset_to_seg.py
 '''
 # libraries
 import sys,os,gzip
@@ -11,14 +11,11 @@ import sys,os,gzip
 
 # globals
 server_dir = "/well/got2d/jason/"
-work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
-#pre = work_dir + "fgwas_output/" + "fgwas_run_loci-partition"
-pre = sys.argv[1]
-#sig_block_file = work_dir + "fgwas_blk-t2d_loci_152.txt"
-sig_block_file = sys.argv[2]
+work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
+cred_dir = work_dir + "credible_sets/"
 # functions
 
-def build_dic():
+def build_dic(sig_block_file):
     fin = open(sig_block_file,'r')
     header = fin.readline()
     dic = {}
@@ -32,13 +29,13 @@ def build_dic():
     fin.close()
     return(dic)
 
-def subset_to_seg():
+def subset_to_seg(pre,sig_block_file,out_file):
     print("Building dictionary...")
-    ref_dic =  build_dic()
+    ref_dic =  build_dic(sig_block_file)
     fin = gzip.open(pre+".bfs.gz",'rb')
     head_list = fin.readline().strip().split()
     head_list = ["SEGNUMBER"] + head_list
-    fout = gzip.open(work_dir+"loci_block_snps.bfs.txt.gz",'wb')
+    fout = gzip.open(out_file,'wb')
     print("Writing output file...")
     fout.write(" ".join(head_list)+"\n")
     count=0
@@ -60,9 +57,24 @@ def subset_to_seg():
     fout.close()
     fin.close()
 
+def run_all(roundd,ppthr="0.9"):
+    print "Round: " + str(roundd)
+    tiss_list = ["islet","liver","adipose","muscle"]
+    for tiss in tiss_list:
+        print tiss
+        if roundd == 1:
+            pre = work_dir + "fgwas_output_" + tiss +"/" + "best-joint-model"
+        elif roundd ==2:
+            pre = work_dir + "fgwas_output_" + tiss +"/round2/" + "best-joint-model"
+        else:
+            raise TypeError("Must enter valid round value: 1 or 2")
+        sig_block_file = cred_dir + "Round"+str(roundd)+"."+tiss+".sig_blocks_ppa"+str(ppthr)+".txt"
+        out_file = cred_dir + "Round"+str(roundd)+"."+tiss+".loci_block_snps.bfs.txt.gz"
+        subset_to_seg(pre,sig_block_file,out_file)
 
 
 def main():
-    subset_to_seg()
+    run_all(roundd=1)
+    run_all(roundd=2)
 
 if (__name__=="__main__"): main()
