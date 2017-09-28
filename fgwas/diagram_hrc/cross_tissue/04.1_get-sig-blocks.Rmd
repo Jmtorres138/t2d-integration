@@ -25,59 +25,61 @@ library("GenomicRanges")
 
 serv.dir <- "/Users/jtorres/FUSE/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
-fgwas.output.dir <- work.dir %&% "fgwas_output/"
-
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
-
-pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"  
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/credible_sets/"
 
 ```
 
 
 ```{r}
 
-
-get_loci_blocks <- function(save.prefix){
-  loc.df <- fread(work.dir%&%"t2d-loci-regions.txt")
-  names(loc.df) <- c("CHR","Start","End")
-  loc.gr <- GRanges(seqnames=loc.df$CHR,IRanges(loc.df$Start,loc.df$End))
+get_sig_blocks <- function(pre, tissue, round, ppa.thresh=0.90){
   blk.df <- fread("cat " %&% pre %&% ".segbfs.gz" %&% " | zmore")
-  blk.gr <- GRanges(seqnames=blk.df$chr,IRanges(blk.df$st,blk.df$sp))
-  keep.gr <- blk.gr[blk.gr%over%loc.gr]
-  out.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(loc.df)[1],style=3)
-  for (i in 1:length(loc.gr)){
-    setTxtProgressBar(pb,i)
-    build.gr <- blk.gr[blk.gr%over%loc.gr[i]]
-    chrom.vec <- as.character(seqnames(build.gr))
-    start.vec <- start(build.gr)
-    end.vec <- end(build.gr)
-    build.df <- filter(blk.df,chr%in%chrom.vec,st%in%start.vec,sp%in%end.vec)
-    SEGNUMBER <- rep(i,length(chrom.vec))
-    build.df <- cbind(SEGNUMBER,build.df) %>% arrange(desc(PPA))
-    out.df <- rbind(out.df,build.df[1,])
-  }
-  sig.blk.df <- dplyr::select(out.df,one_of("SEGNUMBER","chr","st","sp","PPA","NSNP"))
-  
-  names(sig.blk.df) <- c("SEGNUMBER","CHR","blk.start","blk.end","blk.PPA","blk.NSNP")
-
-  
-  write.table(x=sig.blk.df,file = work.dir %&% save.prefix %&%".txt", 
+  sig.blk.df <- filter(blk.df, PPA >= ppa.thresh) %>% arrange(desc(PPA))
+  chrom <- as.integer(gsub("chr","",sig.blk.df$chr))
+  sig.blk.df$chrom <- chrom
+  sig.blk.df <- arrange(sig.blk.df,chrom,st) %>%
+    dplyr::select(one_of("chr","st","sp","PPA"))
+  names(sig.blk.df) <- c("CHR","blk.start","blk.end","blk.PPA")
+  SEGNUMBER <- 1:dim(sig.blk.df)[1]
+  sig.blk.df <- cbind(SEGNUMBER,sig.blk.df)
+  write.table(x=sig.blk.df,file = cred.set.dir %&% "Round" %&% 
+                round  %&% "." %&% tissue %&% ".sig_blocks_ppa"%&%ppa.thresh%&%".txt", 
               sep="\t",quote=FALSE,row.names=FALSE)
-  saveRDS(object=sig.blk.df,file=work.dir%&%save.prefix%&%".df.RDS")
-  print("Proportion of blocks with cummulative PPA >= 0.9: " %&% 
-          (dim(filter(sig.blk.df,blk.PPA>=0.9))[1]/(dim(sig.blk.df)[1])))
-  print("Proportion of blocks with cummulative PPA >= 0.8: " %&% 
-          (dim(filter(sig.blk.df,blk.PPA>=0.8))[1]/(dim(sig.blk.df)[1])))
-  print("Proportion of blocks with cummulative PPA >= 0.5: " %&% 
-          (dim(filter(sig.blk.df,blk.PPA>=0.5))[1]/(dim(sig.blk.df)[1])))
+  prop.sig <- dim(sig.blk.df)[1]/dim(blk.df)[1] # 0.0582762
+  print("Proportion of blocks with cummulative PPA >= " %&% ppa.thresh %&% ": " %&% prop.sig)
   return(sig.blk.df)
 }
 
-loc.blk.df <- get_loci_blocks("fgwas_blk-t2d_loci_152")
-
 ```
+
+
+Test 
+
+```{r}
+
+round1 <- function(tiss.vec=c("islet","liver","adipose","muscle")){
+  print("Round 1")
+  for (tiss in tiss.vec){
+    fgwas.output.dir <- work.dir %&% "fgwas_output_" %&% tiss %&% "/"
+    pre <- fgwas.output.dir %&% "best-joint-model"  
+    get_sig_blocks(pre,tiss,1) 
+  }  
+}
+
+round2 <- function(tiss.vec=c("liver","adipose","muscle")){
+  print("Round 2")
+  for (tiss in tiss.vec){
+    fgwas.output.dir <- work.dir %&% "fgwas_output_" %&% tiss %&% "/round2/"
+    pre <- fgwas.output.dir %&% "best-joint-model"  
+    get_sig_blocks(pre,tiss,2) 
+  }  
+}
+
+round1()
+round2()
+```
+
 
 
 # Subset fgwas SNP output file to SNP in significant blocks 
