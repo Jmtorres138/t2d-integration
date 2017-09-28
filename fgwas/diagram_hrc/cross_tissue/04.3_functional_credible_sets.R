@@ -11,13 +11,9 @@ library(GenomicRanges)
 
 serv.dir <- "/well/got2d/jason/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
-fgwas.output.dir <- work.dir %&% "fgwas_output/"
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
 
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
-
-pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"  
-
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/credible_sets/"
 
 
 get_cred <- function(dframe,cname,prob=0.99){ # 99% functional credible sets 
@@ -104,18 +100,33 @@ annot_refGene <- function(cred.df,segsnps.df){
   return(cred.df)
 }
 
-
 # Run 
 
+run_process <- function(round, tissue, ppthr="0.9"){
+  segsnps.df <- fread("cat " %&% cred.set.dir %&% 
+                        "Round"%&%round%&%"."%&%tissue%&%".loci_block_snps.bfs.txt.gz"
+                      %&% " | zmore")
+  
+  cred95.df <- get_credsets(0.95,segsnps.df)
+  cred99.df <- get_credsets(0.99,segsnps.df)
+  cred95.df <- annot_refGene(cred95.df,segsnps.df)
+  cred99.df <- annot_refGene(cred99.df,segsnps.df)  
+  write.table(x=cred95.df,file=cred.set.dir%&%"Round"%&%round%&%"."%&%
+                tissue%&%".fgwas_credsets_95.txt",sep="\t",
+              quote=FALSE,row.names=F)
+  write.table(x=cred99.df,file=cred.set.dir%&%"Round"%&%round%&%"."%&%
+                tissue%&%".fgwas_credsets_99.txt",sep="\t",
+              quote=FALSE,row.names=F)
+}
 
-segsnps.df <- fread("cat " %&% work.dir %&% "loci_block_snps.bfs.txt.gz" %&% " | zmore")
-cred95.df <- get_credsets(0.95,segsnps.df)
-cred99.df <- get_credsets(0.99,segsnps.df)
-cred95.df <- annot_refGene(cred95.df,segsnps.df)
-cred99.df <- annot_refGene(cred99.df,segsnps.df)
-write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95.txt",sep="\t",
-            quote=FALSE,row.names=F)
-write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99.txt",sep="\t",
-            quote=FALSE,row.names=F)
+
+run_jobs(round,tiss.vec,ppthr="0.9"){
+  print("Round" %&% round)
+  for (tiss in tiss.vec){
+    run_process(round,tiss,ppthr)
+  }
+}
 
 
+run_jobs("1",tiss.vec=c("islet","adipose","muscle","liver"))
+run_jobs("2",tiss.vec=c("adipose","muscle","liver"))
