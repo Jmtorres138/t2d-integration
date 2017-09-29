@@ -123,8 +123,8 @@ an_plot <- function(mydf,mytitl="",mylow=-10,myhigh=10,interval=1){
 param.df <- build_param_best_df(pre=best.joint.model.file.prefix)
 plt <- an_plot(param.df,mytitl=my.title%&%": Joint Analysis",mylow=-5,myhigh=5,interval=1)
 plt
-write.table(x=param.df,file=fgwas.dir %&% output.prefix %&% ".fgwas_enrich_t2d-loci-partition.joint.txt",
+write.table(x=param.df,file=plot.dir %&% output.prefix %&% ".fgwas_enrich_t2d-loci-partition.joint.txt",
             sep="\t",quote=F,col.names=TRUE,row.names=FALSE)
-ggsave(filename=fgwas.dir %&% output.prefix %&% ".fgwas_enrich_t2d-loci-partition.joint.png",plot=plt,width=6,height=6)
+ggsave(filename=plot.dir %&% output.prefix %&% ".fgwas_enrich_t2d-loci-partition.joint.png",plot=plt,width=6,height=6)
 
 ```
