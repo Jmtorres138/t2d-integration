@@ -38,7 +38,7 @@ def subset_to_seg():
     fin = gzip.open(pre+".bfs.gz",'rb')
     head_list = fin.readline().strip().split()
     head_list = ["SEGNUMBER"] + head_list
-    fout = gzip.open(work_dir+"loci_block_snps.bfs.txt.gz",'wb')
+    fout = gzip.open(work_dir+"null_loci_block_snps.bfs.txt.gz",'wb')
     print("Writing output file...")
     fout.write(" ".join(head_list)+"\n")
     count=0
