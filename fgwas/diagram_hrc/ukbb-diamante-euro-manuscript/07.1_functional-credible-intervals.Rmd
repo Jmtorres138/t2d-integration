@@ -210,6 +210,19 @@ write.table(x=fcred.df,file=plot.dir %&% "results_func-cred-sets.txt",sep="\t",
 ```
 
 
+```{r}
+t <- filter(fcred.df,POS==4384844)
+filter(fcred.df,Locus.ID=="146_2")
+filter(fcred.df,Locus.ID=="146_3")
+filter(fcred.df,Locus.ID=="146_4")
+filter(fcred.df,Locus.ID=="146_5")
+
+#chr12:4384844, chr12:4403876, chr12:4403876, chr12:4403876, chr12:4384696, chr12:4403876
+
+```
+
+
+
 Save table plots 
 
 ```{r}

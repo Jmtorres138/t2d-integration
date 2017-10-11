@@ -27,11 +27,12 @@ serv.dir <- "/Users/jtorres/FUSE/"
 
 gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+root.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+work.dir <- root.dir %&% "null/"
 cond.out.dir <- work.dir %&% "conditional/fgwas_output_files/"
 
 cred.set.dir <- work.dir %&% "credible_sets/"
-bed.dir <- work.dir %&% "partition_bedfiles/"
+bed.dir <- root.dir %&% "partition_bedfiles/"
 
 manual.vec <- c("87_1", "132_1", "133_1", "86_1")
 missing.vec <- c("20_1","86_2","87_2","132_3","132_4","132_5",
@@ -76,8 +77,8 @@ get_block_info <- function(loc.id){
     bed.df <- fread(bed.dir %&% "loci-partition-cond" %&% cond.num %&% ".bed")
   } else if (loc.id %in% loc.ref.df$Locus.ID){
     # single
-    blk.df <- fread(work.dir %&% "fgwas_blk-t2d_loci_152.txt")
-    bed.df <- fread(work.dir %&% "loci-partition.bed")
+    blk.df <- fread(root.dir %&% "fgwas_blk-t2d_loci_152.txt")
+    bed.df <- fread(root.dir %&% "loci-partition.bed")
   } else {
     stop("Not a valid entry")
   }
@@ -203,9 +204,9 @@ block.df$refseq <- sapply(1:dim(block.df)[1],function(i){
   return(refseq)
 })
 
-write.table(x=block.df,file=plot.dir %&% "results_blocks.txt",sep="\t",
+write.table(x=block.df,file=cred.set.dir %&% "null_results_blocks.txt",sep="\t",
             quote=F,row.names=F)
-write.table(x=fcred.df,file=plot.dir %&% "results_func-cred-sets.txt",sep="\t",
+write.table(x=fcred.df,file=cred.set.dir %&% "null_results_func-cred-sets.txt",sep="\t",
             quote=F,row.names=F)
 ```
 
@@ -250,9 +251,9 @@ ggsave(tab6,filename = plot.dir %&% "fcred_table_part6.png",height=20,width=12)
 ggsave(tab7,filename = plot.dir %&% "fcred_table_part7.png",height=20,width=12)
 ggsave(tab8,filename = plot.dir %&% "fcred_table_part8.png",height=20,width=12)
 
-write.table(x=block.df,file=plot.dir %&% "results_blocks.txt",sep="\t",
+write.table(x=block.df,file=cred.set.dir %&% "results_blocks.txt",sep="\t",
             quote=F,row.names=F)
-write.table(x=fcred.df,file=plot.dir %&% "results_func-cred-sets.txt",sep="\t",
+write.table(x=fcred.df,file=cred.set.dir %&% "results_func-cred-sets.txt",sep="\t",
             quote=F,row.names=F)
 
 ```
