@@ -24,12 +24,13 @@ library(GenomicRanges)
 
 serv.dir <- "/Users/jtorres/FUSE/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
-fgwas.output.dir <- work.dir %&% "fgwas_output/"
+root.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+work.dir <- root.dir %&% "null/"
+fgwas.output.dir <- work.dir %&% "fgwas_output_files/"
 
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
+cred.set.dir <- work.dir %&% "credible_sets/"
 
-pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"  
+pre <- fgwas.output.dir %&% "null_fgwas_run_loci-partition"  
 
 ```
 
@@ -141,7 +142,7 @@ annot_refGene <- function(cred.df,segsnps.df){
 
 ```{r}
 
-segsnps.df <- fread("cat " %&% work.dir %&% "loci_block_snps.bfs.txt.gz" %&% " | zmore")
+segsnps.df <- fread("cat " %&% fgwas.output.dir  %&% "loci_block_snps.bfs.txt.gz" %&% " | zmore")
 cred95.df <- get_credsets(0.95,segsnps.df)
 cred99.df <- get_credsets(0.99,segsnps.df)
 cred95.df <- annot_refGene(cred95.df,segsnps.df)
