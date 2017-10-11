@@ -25,12 +25,13 @@ library("GenomicRanges")
 
 serv.dir <- "/Users/jtorres/FUSE/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
-fgwas.output.dir <- work.dir %&% "fgwas_output/"
+root.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+work.dir <- root.dir %&% "null/"
+fgwas.output.dir <- work.dir %&% "fgwas_output_files/"
 
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
+cred.set.dir <- work.dir %&% "credible_sets/"
 
-pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"  
+pre <- fgwas.output.dir %&% "null_fgwas_run_loci-partition"  
 
 ```
 
@@ -39,7 +40,7 @@ pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"
 
 
 get_loci_blocks <- function(save.prefix){
-  loc.df <- fread(work.dir%&%"t2d-loci-regions.txt")
+  loc.df <- fread(root.dir%&%"t2d-loci-regions.txt")
   names(loc.df) <- c("CHR","Start","End")
   loc.gr <- GRanges(seqnames=loc.df$CHR,IRanges(loc.df$Start,loc.df$End))
   blk.df <- fread("cat " %&% pre %&% ".segbfs.gz" %&% " | zmore")
@@ -75,7 +76,7 @@ get_loci_blocks <- function(save.prefix){
   return(sig.blk.df)
 }
 
-loc.blk.df <- get_loci_blocks("fgwas_blk-t2d_loci_152")
+loc.blk.df <- get_loci_blocks("null_fgwas_blk-t2d_loci_152")
 
 ```
 
