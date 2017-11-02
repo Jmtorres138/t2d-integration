@@ -19,7 +19,8 @@ fgwas = "LD_LIBRARY_PATH=/apps/well/gsl/2.2.1-gcc4.9.3/lib /users/mccarthy/jmtor
 home_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 in_dir=home_dir+"fgwas_input/"
 out_dir = home_dir + "fgwas_output/"
-input_file=in_dir+"ukbb_diamante-euro.fgwas.gz" # Optional: Run 01.1 script and use this for abbreviated annotations: in_dir+"diagram_hrc.renamed.fgwas.gz"
+#input_file=in_dir+"ukbb_diamante-euro.fgwas.gz" # Optional: Run 01.1 script and use this for abbreviated annotations: in_dir+"diagram_hrc.renamed.fgwas.gz"
+input_file=in_dir+"ukbb_diamante-euro_reduced.fgwas.gz" # explicitly removing transcript and intron from analysis
 job_dir=home_dir+"jobs/"
 log_dir=home_dir+"logs/"
 if os.path.isdir(out_dir)==False:

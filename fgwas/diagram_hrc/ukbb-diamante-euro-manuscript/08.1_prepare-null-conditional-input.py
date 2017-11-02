@@ -19,9 +19,20 @@ fgwas = "LD_LIBRARY_PATH=/apps/well/gsl/2.2.1-gcc4.9.3/lib /users/mccarthy/jmtor
 home_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 ref_dir = home_dir + "conditional/fgwas_input_files/"
 out_dir=home_dir+"null/fgwas_input_files/"
-
+uncond_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/fgwas_input/"
+uncond_name = "ukbb_diamante-euro.fgwas.gz"
 
 def prepare_inputs():
+    print uncond_name
+    infile = uncond_dir + uncond_name
+    outfile = out_dir + "null_" + uncond_name
+    outfile = outfile.split(".gz")[0]
+    command_list = ["zcat",infile," | cut -f 1,2,3,4,5,6,7,8,9",">", outfile]
+    command = " ".join(command_list)
+    sp.check_call(command,shell=True)
+    command_list = ["gzip",outfile]
+    command = " ".join(command_list)
+    sp.check_call(command,shell=True)
     file_list = os.listdir(ref_dir)
     file_list = [x for x in file_list if ".fgwas.gz" in x]
     for f in file_list:

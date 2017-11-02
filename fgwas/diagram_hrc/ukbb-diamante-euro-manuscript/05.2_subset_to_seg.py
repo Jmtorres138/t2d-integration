@@ -3,7 +3,7 @@
 '''
 Subset best fgwas model output to snps in significant blocks
 Note: First must run "Get Significant Blocks" section of file functional_credible_sets.Rmd
-Usage: python subset_to_seg.py pre block_file 
+Usage: python subset_to_seg.py pre block_file
 '''
 # libraries
 import sys,os,gzip
@@ -13,9 +13,9 @@ import sys,os,gzip
 server_dir = "/well/got2d/jason/"
 work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 #pre = work_dir + "fgwas_output/" + "fgwas_run_loci-partition"
-pre = sys.argv[1]
+pre = work_dir + "fgwas_output/" + "fgwas_run_loci-partition" #sys.argv[1]
 #sig_block_file = work_dir + "fgwas_blk-t2d_loci_152.txt"
-sig_block_file = sys.argv[2]
+sig_block_file = work_dir + "fgwas_blk-t2d_loci_151.txt" # sys.argv[2]
 # functions
 
 def build_dic():

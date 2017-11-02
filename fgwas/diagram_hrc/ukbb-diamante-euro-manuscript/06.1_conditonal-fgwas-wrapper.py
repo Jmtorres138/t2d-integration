@@ -25,8 +25,9 @@ out_dir = home_dir + "conditional/fgwas_output_files/"
 job_dir=home_dir+"jobs/"
 log_dir=home_dir+"logs/"
 
-manual_list = ["87_1", "132_1", "133_1", "86_1"]
-missing_list = ["20_1","86_2","87_2","132_3","132_4","132_5","133_3","133_4","133_5","163_2","164_2"]#,"243","244" ]
+manual_list = ["210_1","210_2","86_1","87_1", "132_1", "132_2", "132_3", "132_4", "132_5",
+                "133_1","133_2","133_3","133_4","133_5","133_6","133_7","133_8","133_9","133_10"]
+missing_list = ["20_1","86_2","87_2","163_2","164_2"]#,"243","244" ]
 
 gwas_bed_dir = "/well/got2d/jason/reference/gwas/diamante-ukbb_hrc/conditioned/gwas_bedfiles/"
 best_annot_bed = in_dir+"best_anno_input.bed"
@@ -45,15 +46,15 @@ def run_fgwas_input_job(gwas_bed):
     command_list = [python,home_dir+"06.0_build_fgwas_input.py",gwas_bed,out_file]
     command = " ".join(command_list)
     script='''
-    #$ -N job_%s
-    #$ -pe shmem 1
-    #$ -P mccarthy.prjc
-    #$ -q short.qc
-    #$ -e %s%s.error
-    #$ -o %s%s.out
-    echo "start time" `date`
-    %s
-    echo "end time" `date`
+#$ -N job_%s
+#$ -pe shmem 1
+#$ -P mccarthy.prjc
+#$ -q short.qc
+#$ -e %s%s.error
+#$ -o %s%s.out
+echo "start time" `date`
+%s
+echo "end time" `date`
         ''' % (ref_name, log_dir,ref_name,log_dir,ref_name, command)
     fout.write(script)
     fout.close()
@@ -137,7 +138,7 @@ def run_loc_job(loc_id):
 #$ -o %s%s.out
 #$ -V
 echo "start time" `date`
-%s
+#%s
 %s
 %s
 %s
@@ -153,21 +154,25 @@ echo "end time" `date`
 
 def run_all_loci():
     loc_list = []
-    #for i in [1,2,3,4,5,6,7,8,9,10]:
-    #    loc_list.append("cond"+str(i))
-    #loc_list = loc_list + manual_list
+    for i in [1,2,3,4,5,6,7,8,9,10]:
+        loc_list.append("cond"+str(i))
+    loc_list = loc_list + manual_list
     loc_list = loc_list + missing_list
+    #loc_list = manual_list # TEMPORARY REMOVE WHEN FINISHED
     for loc in loc_list:
         run_loc_job(loc)
     print loc_list
 
 def run_cred_sets():
     loc_list = []
-    #for i in [1,2,3,4,5,6,7,8,9,10]:
-    #    loc_list.append("cond"+str(i))
-    #loc_list = loc_list + manual_list
+    for i in [1,2,3,4,5,6,7,8]:#,9,10]:
+        loc_list.append("cond"+str(i))
+    loc_list = loc_list + manual_list
     loc_list = loc_list + missing_list
+    loc_list = manual_list # TEMPORARY REMOVE WHEN FINISHED
+    loc_list = missing_list # TEMPORARY REMOVE WHEN FINISHED
     for loc in loc_list:
+        print(loc)
         command_list5 = [rscript, "--vanilla",home_dir+"06.0_functional_credible_sets.R",loc]
         sp.check_call(command_list5)
     print loc_list
@@ -175,10 +180,8 @@ def run_cred_sets():
 def main():
 
     #build_all_inputs()
-    run_all_loci()
-    #run_cred_sets()
-
-
+    #run_all_loci()
+    run_cred_sets()
 
 
 if (__name__=="__main__"): main()

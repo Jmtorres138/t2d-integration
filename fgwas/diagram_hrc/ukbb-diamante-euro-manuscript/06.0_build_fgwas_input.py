@@ -77,7 +77,7 @@ def build_matrix_file(gwas_bed, annot_list, dic, fgwas_head_list):
     '''
     sys.stdout.write("\nWriting Matrix file\n")
     fin = open(gwas_bed,'r')
-    fout = open(input_dir+"intermediate."+"."+ref_name+".fgwas",'w')
+    fout = open(input_dir+"intermediate"+"."+ref_name+".fgwas",'w')
     head_list = fgwas_head_list + annot_list
     fout.write("\t".join(head_list)+"\n")
     count = 0
