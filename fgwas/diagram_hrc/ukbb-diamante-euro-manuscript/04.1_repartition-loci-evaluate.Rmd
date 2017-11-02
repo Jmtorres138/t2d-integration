@@ -33,7 +33,7 @@ cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-di
 gen.gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/"
 gen.cred.dir <- gen.gwas.dir %&% "freeze1_Csets/"
 
-summary(as.integer(table(cred99.df$SEGNUMBER)))
+#summary(as.integer(table(cred99.df$SEGNUMBER)))
 
 ```
 
@@ -57,15 +57,6 @@ list.df <- make_loc_df()
 
 ```
 
-
-# Write loci-partitioned BED file 
-
-
-```{r}
-
-
-
-```
 
 
 

@@ -30,7 +30,7 @@ annotation.keyfile <- fgwas.dir %&% "plot-key.csv"# Optional: Specifiy if you ha
 if (!is.null(annotation.keyfile)){
   key.df <- fread(annotation.keyfile,sep=",",sep2=" ")
 }
-
+remove.vec <- c("intron","utr_5","utr_3","exon","transcript","promoter")
 
 
 ```
@@ -73,7 +73,7 @@ build_param_df <- function(name.vec=NULL){
   param.files <- param.files[!grepl("+",param.files,fixed=TRUE)]
   param.files <- param.files[!grepl("drop",param.files,fixed=TRUE)]  
   param.files <- param.files[!grepl("best-joint-model",param.files,fixed=TRUE)]  
-
+  param.files <- param.files[!grepl("fgwas_run_loci-partition",param.files,fixed=TRUE)]  
   out.df <- c()
   for (f in param.files){
     stack.df <- annot_process(fgwas.out.dir%&%f)
@@ -87,6 +87,8 @@ build_param_df <- function(name.vec=NULL){
   print("There are " %&% dim(enriched)[1] %&% " annotations that are marginally ENRICHED")
   print("There are " %&% dim(depleted)[1] %&% " annotations that are marginally DEPLETED")
   out.df <- rbind(enriched,depleted)
+  index <- as.logical(map(out.df$parameter, function(x){!(gsub("_ln","",x) %in% remove.vec)}))
+  out.df <- out.df[index,]
   #if (!is.null(name.vec)){
   #  out.df$parameter<-name.vec
   #}
@@ -96,14 +98,8 @@ build_param_df <- function(name.vec=NULL){
   return(out.df)
 }
 
-
-<<<<<<< HEAD
-build_param_best_df <- function(pre,name.vec=NULL){
-  # Note: pre is best model from fgwas run
-=======
 build_param_best_df <- function(pre){
-  # Note: pre is best model from fgwas run 
->>>>>>> b8a96a87574a5dcaae6c3217f59b79e469e059bc
+
   param.df <- annot_process(pre %&% ".params")
   param.df <- arrange(param.df,desc(estimate))
   param.df <- filter(param.df,parameter!="pi")

@@ -33,9 +33,10 @@ cond.out.dir <- work.dir %&% "conditional/fgwas_output_files/"
 cred.set.dir <- work.dir %&% "credible_sets/"
 bed.dir <- work.dir %&% "partition_bedfiles/"
 
-manual.vec <- c("87_1", "132_1", "133_1", "86_1")
-missing.vec <- c("20_1","86_2","87_2","132_3","132_4","132_5",
-                 "133_3","133_4","133_5","163_2","164_2")#,"243","244")
+manual.vec <- c("86_1","87_1","132_1","132_2","132_3","132_4","132_5",
+  "133_1","133_2","133_3","133_4","133_5","133_6","133_7","133_8","133_9","133_10","210_1","210_2")
+missing.vec = c("20_1","86_2","87_2","163_2","164_2")
+
 
 ```
 
@@ -76,7 +77,7 @@ get_block_info <- function(loc.id){
     bed.df <- fread(bed.dir %&% "loci-partition-cond" %&% cond.num %&% ".bed")
   } else if (loc.id %in% loc.ref.df$Locus.ID){
     # single
-    blk.df <- fread(work.dir %&% "fgwas_blk-t2d_loci_152.txt")
+    blk.df <- fread(work.dir %&% "fgwas_blk-t2d_loci_151.txt")
     bed.df <- fread(work.dir %&% "loci-partition.bed")
   } else {
     stop("Not a valid entry")
@@ -129,7 +130,7 @@ Build credible set file with correct Locus ID information
 ```{r}
 
 get_fcred_set <- function(loc.id, seg, credset = "99"){
-  if (loc.id %in% manual.vec){
+  if (loc.id %in% manual.vec | loc.id %in% missing.vec){
     # manual
     cred.df <- fread(cred.set.dir %&% "fgwas_credsets_" %&% credset %&% "-" %&% loc.id %&% ".txt")
   } else if (grepl("_",loc.id)){
@@ -203,27 +204,34 @@ block.df$refseq <- sapply(1:dim(block.df)[1],function(i){
   return(refseq)
 })
 
-write.table(x=block.df,file=plot.dir %&% "results_blocks.txt",sep="\t",
+
+write.table(x=block.df,file=cred.set.dir %&% "results_blocks.txt",sep="\t",
             quote=F,row.names=F)
-write.table(x=fcred.df,file=plot.dir %&% "results_func-cred-sets.txt",sep="\t",
+write.table(x=fcred.df,file=cred.set.dir %&% "results_func-cred-sets.txt",sep="\t",
             quote=F,row.names=F)
+
 ```
 
 
 ```{r}
-t <- filter(fcred.df,POS==4384844)
-filter(fcred.df,Locus.ID=="146_2")
-filter(fcred.df,Locus.ID=="146_3")
-filter(fcred.df,Locus.ID=="146_4")
-filter(fcred.df,Locus.ID=="146_5")
 
-#chr12:4384844, chr12:4403876, chr12:4403876, chr12:4403876, chr12:4384696, chr12:4403876
+over.index <- (block.df$loc.pos >= block.df$fcred.start & block.df$loc.pos <= block.df$fcred.end)
+block.df[!(over.index),]
 
+loc.id <- unique(fcred.df$Locus.ID)
+max.ppa <- map(loc.id,function(x){filter(fcred.df,Locus.ID==x) %>% arrange(desc(PPA)) %>% head(1)})
+max.df <- rbindlist(max.ppa)
+write.table(x=max.df,file=plot.dir %&% "topPPA.txt",sep="\t",
+            quote=F,row.names=F)
 ```
 
 
 
-Save table plots 
+
+
+
+
+# Save table plots 
 
 ```{r}
 
@@ -271,77 +279,6 @@ write.table(x=fcred.df,file=plot.dir %&% "results_func-cred-sets.txt",sep="\t",
 ```
 
 
-# EDA 
-
-```{r}
-library("ggplot2")
-
-ggplot(data=block.df,aes(x=chunk.len,y=blk.len)) + 
-  geom_point() + geom_abline(slope=1,intercept = 0,color="red") + theme_bw()  
-
-ggplot(data=block.df,aes(x=chunk.len,y=blk.PPA)) + 
-  geom_point() + geom_abline(slope=1,intercept = 0,color="red") + theme_bw()  
-# Chunk length doesn't influence block PPA (regression p-value: 0.7002)
-
-ggplot(data=block.df,aes(x=chunk.len,y=fcred.num)) + 
-  geom_point() + geom_abline(slope=1,intercept = 0,color="red") + theme_bw()  
-# Chunk length doesn't influence number of snps in functional credible set (regression p-value: p-value: 0.7427)
-
-summary(block.df$chunk.len)
-#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 546500 1000000 1000000  985600 1000000 1000000 
-summary(filter(block.df,fcred.num!=0)$fcred.num)
-#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#   1.00    3.00   13.00   86.53   47.00 5143.00 
-sub <- filter(block.df,chunk.len<1000000)
-dim(sub)[1] # 28
-summary(sub$chunk.len)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 546500  710800  757500  790100  913800  983300 
-summary(sub$fcred.num) # Includes 243 and 244 
-
-sum(block.df$fcred.num==1)
-# 56
-sum(block.df$fcred.num==2)
-# 30
-sum(block.df$fcred.num==3)
-# 21
-sum(block.df$fcred.num==4)
-# 15
-sum(block.df$fcred.num<=10)
-# 182
-> 
-
-```
 
 
-
-
-
-
-
-
-```{r}
-
-#missing.loci <- loc.ref.df$Locus.ID[!(loc.ref.df$Locus.ID %in% block.df$Locus.ID)]
-#"20_1"  "86_2"  "87_2"  "132_3" "132_4" "132_5" "133_3" "133_4" "133_5" "163_2" "164_2" "243"   "244" 
-
-
-#sum(block.df$fcred.num==1) # 54 credible sets fine-mapped to a single variant 
-#t <- arrange(block.df,desc(fcred.len))
-#summary(block.df$fcred.num)
-#   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#   1.00    3.00   13.00   88.39   48.00 5143.00 
-#plot(block.df$blk.len,block.df$fcred.len)
-#abline(a=0,b=1)
-
-#59307725
-#1 chr2 58807724 59807724
-```
-
-
-
-
-```{r}
-```
 

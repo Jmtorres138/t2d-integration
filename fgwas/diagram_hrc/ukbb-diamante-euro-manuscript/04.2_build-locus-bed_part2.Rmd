@@ -85,7 +85,7 @@ process_loci_gr <- function(){
       out.gr <- append(out.gr, gr)
     }
   }
-  return(reduce(out.gr))
+  return(GenomicRanges::reduce(out.gr))
 }
 
 loc.df <- make_loc_df()
@@ -125,7 +125,7 @@ process_loci_gr <- function(){
       out.gr <- append(out.gr, gr)
     }
   }
-  return(reduce(out.gr))
+  return(GenomicRanges::reduce(out.gr))
 }
 
 
@@ -151,13 +151,15 @@ divide_seq <- function(chromo,start,end,width=1e6){
 
 get_bed_df <- function(){
   loci.gr <- process_loci_gr()
+  lim.gr <- GRanges(seqnames=lim.df$V1,IRanges(lim.df$V2,lim.df$V3))
+  tot.gr <- sort(sortSeqlevels(append(lim.gr,loci.gr)))
+  disjoin.gr <- disjoin(tot.gr)
   dis.df <- data.frame("CHR"=seqnames(disjoin.gr),
                        "Start"=start(disjoin.gr),
                        "End"=end(disjoin.gr))
-  lim.gr <- GRanges(seqnames=lim.df$V1,IRanges(lim.df$V2,lim.df$V3))
   
-  tot.gr <- sort(sortSeqlevels(append(lim.gr,loci.gr)))
-  disjoin.gr <- disjoin(tot.gr)
+
+
   dis.df <- data.frame("CHR"=seqnames(disjoin.gr),
                        "Start"=start(disjoin.gr),
                        "End"=end(disjoin.gr))
@@ -188,38 +190,6 @@ write.table(bed.df,file=work.dir%&%"loci-partition.bed",sep="\t",quote=FALSE,
             row.names=F,col.names=F)
 
 ```
-
-
-Checks 
-
-```{r}
-
-#t <- disjoin.gr[disjoin.gr %over% loci.gr]
-#for (i in 1:length(loci.gr)){
-  #print(loci.gr[i])
-#  check <- disjoin.gr[disjoin.gr %over% loci.gr[i]]
-#  if (length(check)>1){
-#    print(i)
-    #print("loci.gr")
-    #print(loci.gr[i])
-    #print("disjoin.gr")
-    #print(check)
-#  }
-#}
-check.df <- bed.df
-check.df$Start <- check.df$Start+1
-check.df$End <- check.df$End+1
-
-t <- filter(check.df,Start%in%loc.df$Start,End%in%End)
-str(t)
-
-#plotGRanges(loci.gr,range=GRanges("chr8",IRanges(113565, 146300622)))
-
-#    CHR     Start       End chrom    range
-#1  chr7  31228453 116995666     7 85767213
-
-```
-
 
 
 
