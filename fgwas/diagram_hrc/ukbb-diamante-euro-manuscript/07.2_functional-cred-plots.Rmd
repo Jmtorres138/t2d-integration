@@ -1,0 +1,213 @@
+---
+title: "07.2_functional-cred-plots.Rmd"
+author: "Jason Torres"
+date: "November 2, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Create summary plots for all conditionally independent loci functional credible sets 
+
+# Setup 
+
+```{r}
+
+"%&%" <- function(a,b) paste0(a,b)
+library("data.table")
+library("dplyr")
+library("ggplot2")
+library(GenomicRanges)
+
+serv.dir <- "/Users/jtorres/FUSE/"
+
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+fgwas.output.dir <- work.dir %&% "fgwas_output/"
+
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
+
+lev.vec <- c("islet_state8","islet_state9","islet_state11","islet_state12","coding",
+             "islet_state14","islet_state2","islet_state5","distance_tss_0_5000","other")
+
+```
+
+
+Build credible set dataframes 
+
+
+```{r}
+
+block99.df <- fread(cred.set.dir%&%"results_blocks.txt",sep="\t")
+fcred99.df <- fread(cred.set.dir%&%"results_func-cred-sets.txt",sep="\t")
+
+```
+
+
+
+Functions 
+
+
+```{r}
+
+get_format_list <- function(cred.df,lev.vec){
+  loc.vec <- unique(cred.df$Locus.ID)
+  annot.vec <- names(cred.df)[10:length(names(cred.df))]
+  
+  out.df <- c() 
+  print(length(loc.vec))
+  pb <- txtProgressBar(min=0,max=length(loc.vec),style=3)
+  for (i in 1:length(loc.vec)){
+    setTxtProgressBar(pb,i)
+    loc <- loc.vec[i]
+    temp.df <- filter(cred.df,Locus.ID==loc)
+    cumppa <- sum(temp.df$PPA)
+    myrow <- c(loc)
+    for (annot in annot.vec){
+      index <- match(annot,names(temp.df))
+      sub.df <- temp.df[,c(1:9,index),]
+      annotppa <- sum(sub.df$PPA[as.logical(sub.df[,10])]) / cumppa
+      myrow <- c(myrow,annotppa)
+    }
+    other <- (1-sum(unique(as.numeric(myrow[2:(length(myrow))]))))
+    other <- ifelse(other>=0,other,0)
+    myrow <- c(myrow,other)
+    cumsum <- sum((as.numeric(myrow[2:(length(myrow))])))
+    myrow[2:length(myrow)] <- as.numeric(myrow[2:length(myrow)]) / cumsum # scale to give proper proportion
+    names(myrow) <- c("Locus.ID",annot.vec,"other")
+    myrow <- as.data.frame(t(as.matrix(myrow)))
+    out.df <- rbind(out.df,myrow)
+  }
+  out.df <- as.data.frame(out.df)
+  row.names(out.df) <- NULL
+  indx <- sapply(out.df, is.factor)
+  out.df[indx] <- lapply(out.df[indx], function(x) as.numeric(as.character(x)))
+  out.df$Locus.ID <- loc.vec
+  #write.table(out.df,file=cred.set.dir%&%"results_ppa-partition.txt",sep="\t",quote=F,row.names=F)
+  
+  format.df <- c() 
+  pb <- txtProgressBar(min=0,max=dim(out.df)[1],style=3)
+  for (i in 1:dim(out.df)[1]){
+    myrow <- out.df[i,]
+    setTxtProgressBar(pb,i)
+    Locus.ID <- rep(myrow$Locus.ID,length(2:length(myrow)))
+    Annotation <- names(myrow)[2:length(myrow)]
+    Proportion <- as.numeric(myrow[2:length(myrow)])
+    stack.df <- data.frame(Locus.ID,Annotation,Proportion)
+    format.df <- rbind(format.df,stack.df)
+  }
+  format.df$Annotation <- factor(format.df$Annotation,levels=lev.vec)
+  
+  Symbol <- c()
+  pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
+  for (i in 1:dim(format.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc <- format.df$Locus.ID[i]
+    symb <- filter(cred.df,Locus.ID==loc)$symbol[1]
+    Symbol <- c(Symbol,symb)
+  }
+  format.df <- cbind(Symbol,format.df)
+  
+  isletreg.df <- c()
+  pb <- txtProgressBar(min=0,max=length(loc.vec),style=3)
+#  for (loc in loc.vec){
+  for (i in 1:length(loc.vec)){
+    setTxtProgressBar(pb,i)
+    loc <- loc.vec[i]
+    temp.df <- filter(format.df,Locus.ID==loc,
+                      Annotation=="islet_state8" | Annotation=="islet_state9" | Annotation=="islet_state11" 
+                      | Annotation=="islet_state12" )
+    islet.reg.prop <- sum(temp.df$Proportion)
+    gene <- filter(format.df,Locus.ID==loc)$Symbol[1]
+    stack.df <- data.frame(Symbol=gene,Locus.ID=loc,islet.reg.prop)
+    isletreg.df <- rbind(isletreg.df,stack.df)
+  }
+  isletreg.df <- arrange(isletreg.df,(islet.reg.prop))
+  PlotID <- paste0(isletreg.df$Locus.ID,": ",isletreg.df$Symbol)
+  isletreg.df <- cbind(PlotID,isletreg.df)
+  
+  PlotID <- paste0(format.df$Locus.ID,": ",format.df$Symbol)
+  format.df <- cbind(PlotID,format.df)
+  format.df$PlotID <- factor(format.df$PlotID,levels=isletreg.df$PlotID)
+  format.df$Locus.ID <- factor(format.df$Locus.ID,levels=isletreg.df$Locus.ID)
+  #format.df$Symbol <- factor(format.df$Symbol,levels=isletreg.df$Symbol)
+  
+  SNPCOUNT <- c()
+  pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
+  for (i in 1:dim(format.df)[1]){
+    setTxtProgressBar(pb,i)
+    loc <- format.df[i,]$Locus.ID
+    annot <- format.df[i,]$Annotation
+    temp.df <- filter(cred.df,Locus.ID==loc)
+    if (annot !="other"){
+      index <- match(annot,names(cred.df))
+      #print(c(index,loc))
+      snpcount <- sum(temp.df[,index])
+    } else{
+      snpcount <- dim(temp.df)[1] - 
+        sum(as.integer(as.matrix(temp.df[,8:dim(temp.df)[2]])))
+      if (snpcount < 0){
+        snpcount <- 0 
+      }
+    }
+    SNPCOUNT <- c(SNPCOUNT,snpcount)
+  }
+  format.df$SNPCOUNT <- SNPCOUNT 
+
+  return(list(out.df,isletreg.df,format.df))
+}
+
+ppa_plot <- function(format.df){
+  plt <- ggplot(data=format.df,aes(x=PlotID,y=Proportion,fill=Annotation)) + 
+            geom_bar(stat="identity",color="black",size=0.2) + 
+            scale_y_continuous(breaks=seq(0,1,0.1)) + 
+            xlab("Locus") + 
+            coord_flip() + 
+            scale_fill_brewer(palette="Spectral") +
+            ggtitle("Proportion of PPA attributable to each annotation")
+  return(plt)
+}
+
+snpcount_plot <- function(format.df){
+  plt <- ggplot(data=format.df,aes(x=PlotID,y=SNPCOUNT,fill=Annotation)) + 
+            geom_bar(stat="identity",color="black",size=0.2) + 
+            scale_y_continuous(breaks=seq(0,5000,200)) + 
+            xlab("Locus")+
+            coord_flip() + 
+            scale_fill_brewer(palette="Spectral") +
+            ggtitle("Proportion of SNP count attributable to each annotation")  
+  return(plt)
+}
+
+
+```
+
+
+99% Credible Sets 
+
+```{r}
+
+lev.vec <- c("islet_state8","islet_state9","islet_state11","islet_state12","coding",
+             "islet_state14","islet_state2","islet_state5","distance_tss_0_5000","other")
+
+summary(as.integer(table(fcred99.df$SEGNUMBER)))
+formlist <- get_format_list(fcred99.df,lev.vec)
+ppa.df <- formlist[[1]]
+isletreg.df <- formlist[[2]]; isletreg.df <- arrange(isletreg.df,desc(islet.reg.prop))
+form99.df <- formlist[[3]]
+top100 <- isletreg.df$Locus.ID[1:50]
+ppa.plt.99 <- ppa_plot(filter(form99,Locus.ID%in%top100))
+sc.plt.99 <- snpcount_plot(form99)
+
+ggsave(plot=ppa.plt.99,filename=cred.set.dir%&%"functional-cred-99_ppa.png",
+       height=20,width=20)
+ggsave(plot=sc.plt.99,filename=cred.set.dir%&%"functional-cred-99_sc.png",
+       height=20,width=20)
+```
+
+
+```
+
+
+
