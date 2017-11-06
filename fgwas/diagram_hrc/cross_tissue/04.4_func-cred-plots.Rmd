@@ -21,32 +21,41 @@ library("data.table")
 library("dplyr")
 library("ggplot2")
 library(GenomicRanges)
+library("RColorBrewer")
 
 serv.dir <- "/Users/jtorres/FUSE/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
 fgwas.output.dir <- work.dir %&% "fgwas_output/"
 
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/credible_sets/"
+
+plot.dir <- work.dir %&% "plots/"
 
 
-cred95.df <- fread(cred.set.dir%&%"fgwas_credsets_95.txt",sep="\t")
-cred99.df <- fread(cred.set.dir%&%"fgwas_credsets_99.txt",sep="\t")
-
+reg.annot.vec <- c("9_Active_enhancer_1","10_Active_enhancer_2",
+                   "11_Weak_enhancer",
+                   "1_Active_TSS","2_Weak_TSS","3_Flanking_TSS")
+exp.annot.vec <- c("5_Strong_transcription","6_Weak_transcription",
+                   "8_Genic_enhancer")
+repr.annot.vec <- c("16_Repressed_polycomb",
+                    "17_Weak_repressed_polycomb",
+                    "18_Quiescent_low_signal")
+cod.annot.vec <- c("coding","exon")
+genom.annot.vec <- c("promoter","transcript","intron","utr_5","utr_3")
+biv.annot.vec <- c("14_Bivalent/poised_TSS")
+dist.annot.vec <- c("distance_tss_0_5000")
 ```
-
-
+             
 
 # PPA Proportion Annotation Plot functions 
 
 
 ```{r}
 
-
-get_format_df <- function(cred.df,lev.vec){
+build_ppa_partition_df <- function(cred.df){
   seg.vec <- sort(unique(cred.df$SEGNUMBER))
   annot.vec <- names(cred.df)[9:length(names(cred.df))]
-  
   out.df <- c() 
   pb <- txtProgressBar(min=0,max=length(seg.vec),style=3)
   for (i in 1:length(seg.vec)){
@@ -70,12 +79,15 @@ get_format_df <- function(cred.df,lev.vec){
     out.df <- rbind(out.df,myrow)
   }
   out.df <- as.data.frame(out.df)
-  row.names(out.df) <- NULL
-  
+  row.names(out.df) <- NULL  
+  return(out.df)
+}
+
+reformat_partition_df <- function(part.df){
   format.df <- c() 
-  pb <- txtProgressBar(min=0,max=dim(out.df)[1],style=3)
-  for (i in 1:dim(out.df)[1]){
-    myrow <- out.df[i,]
+  pb <- txtProgressBar(min=0,max=dim(part.df)[1],style=3)
+  for (i in 1:dim(part.df)[1]){
+    myrow <- part.df[i,]
     setTxtProgressBar(pb,i)
     SEGNUMBER <- rep(myrow$SEGNUMBER,length(2:length(myrow)))
     Annotation <- names(myrow)[2:length(myrow)]
@@ -83,7 +95,7 @@ get_format_df <- function(cred.df,lev.vec){
     stack.df <- data.frame(SEGNUMBER,Annotation,Proportion)
     format.df <- rbind(format.df,stack.df)
   }
-  format.df$Annotation <- factor(format.df$Annotation,levels=lev.vec)
+  format.df$Annotation <- factor(format.df$Annotation)#,levels=lev.vec)
   
   Symbol <- c()
   pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
@@ -94,31 +106,106 @@ get_format_df <- function(cred.df,lev.vec){
     Symbol <- c(Symbol,symb)
   }
   format.df <- cbind(Symbol,format.df)
-  
-  isletreg.df <- c()
+  return(format.df)
+}
+
+build_reg_df <- function(seg.vec,reformat.df){
+  reg.df <- c()
   pb <- txtProgressBar(min=0,max=length(seg.vec),style=3)
-#  for (seg in seg.vec){
   for (i in 1:length(seg.vec)){
     setTxtProgressBar(pb,i)
     seg <- seg.vec[i]
-    temp.df <- filter(format.df,SEGNUMBER==seg,
-                      Annotation=="islet_state8" | Annotation=="islet_state9" | Annotation=="islet_state11" 
-                      | Annotation=="islet_state12" )
-    islet.reg.prop <- sum(temp.df$Proportion)
-    gene <- filter(format.df,SEGNUMBER==seg)$Symbol[1]
-    stack.df <- data.frame(Symbol=gene,SEGNUMBER=seg,islet.reg.prop)
-    isletreg.df <- rbind(isletreg.df,stack.df)
+    temp.df <- filter(reformat.df,SEGNUMBER==seg, Annotation %in% reg.annot.vec)
+    reg.prop <- sum(temp.df$Proportion)
+    gene <- filter(reformat.df,SEGNUMBER==seg)$Symbol[1]
+    stack.df <- data.frame(Symbol=gene,SEGNUMBER=seg,reg.prop)
+    reg.df <- rbind(reg.df,stack.df)
   }
-  isletreg.df <- arrange(isletreg.df,(islet.reg.prop))
-  PlotID <- paste0(isletreg.df$SEGNUMBER,": ",isletreg.df$Symbol)
-  isletreg.df <- cbind(PlotID,isletreg.df)
+  reg.df <- arrange(reg.df,(reg.prop))
+  PlotID <- paste0(reg.df$SEGNUMBER,": ",reg.df$Symbol)
+  reg.df <- cbind(PlotID,reg.df)  
+  return(reg.df)
+}
+
+make_level_vec <- function(reformat.df){
+  avail.annots <- unique(reformat.df$Annotation)
+  
+  reg.vec <- as.character(na.omit(sapply(1:length(reg.annot.vec),function(i){
+    annot <- reg.annot.vec[i]
+    ifelse(annot%in%avail.annots,annot,NA)
+  })))
+  ramp <- colorRampPalette(rev(brewer.pal(5,"Reds")))
+
+  reg.col <- ramp(length(reg.vec))
+  
+  exp.vec <- as.character(na.omit(sapply(1:length(exp.annot.vec),function(i){
+    annot <- exp.annot.vec[i]
+    ifelse(annot%in%avail.annots,annot,NA)
+  })))
+  #ramp <- colorRampPalette(rev(brewer.pal(5,"Greens")))
+  ramp <- colorRampPalette(c("green1","green2"))
+  exp.col <- ramp(length(exp.vec))
+  
+  repr.vec <- as.character(na.omit(sapply(1:length(repr.annot.vec),function(i){
+    annot <- repr.annot.vec[i]
+    ifelse(annot%in%avail.annots,annot,NA)
+  })))
+  ramp <- colorRampPalette(rev(brewer.pal(5,"Greys")))
+  #repr.col <- ramp(length(repr.vec))
+  repr.col <- rep("grey",length(cod.vec))
+ 
+  cod.vec <- as.character(na.omit(sapply(1:length(cod.annot.vec),function(i){
+    annot <- cod.annot.vec[i]
+    ifelse(annot%in%avail.annots,annot,NA)
+  })))
+  cod.col <- rep("black",length(cod.vec))
+  
+  genom.vec <- as.character(na.omit(sapply(1:length(genom.annot.vec),function(i){
+    annot <- genom.annot.vec[i]
+    ifelse(annot%in%avail.annots,annot,NA)
+  })))
+  ramp <- colorRampPalette(rev(brewer.pal(5,"Blues")))
+  #ramp <- colorRampPalette(c("dodgerblue2","dodgerblue1"))
+
+  genom.col <- ramp(length(genom.vec))
+  
+  biv.vec <- as.character(na.omit(sapply(1:length(biv.annot.vec),function(i){
+    annot <- biv.annot.vec[i]
+    ifelse(annot%in%avail.annots,annot,NA)
+  })))
+  ramp <- colorRampPalette(rev(brewer.pal(5,"Purples")))
+  biv.col <- ramp(length(biv.vec)) 
+  
+  dist.vec <- as.character(na.omit(sapply(1:length(dist.annot.vec),function(i){
+    annot <- dist.annot.vec[i]
+    ifelse(annot%in%avail.annots,annot,NA)
+  })))
+# ramp <- colorRampPalette(rev(brewer.pal(5,"YlGn")))
+  ramp <- colorRampPalette(c("azure"))
+
+  dist.col <- ramp(length(dist.vec)) 
+  
+  lev.vec <- c(reg.vec,cod.vec,exp.vec,biv.vec,genom.vec,repr.vec,dist.vec,"other")
+  col.vec <- c(reg.col,cod.col,exp.col,biv.col,genom.col,repr.col,dist.col,"ghostwhite")
+  #ramp <- colorRampPalette(rev(brewer.pal(6,"BuGn")))
+  #leftover.cols <- ramp(length(lev.vec)-length(reg.vec)-length(cod.vec))
+  #col.vec <- c(reg.col,cod.col,leftover.cols)
+  return(list(lev.vec,col.vec))
+}
+
+build_plotting_list <- function(cred.df,top=100){
+  # top is the number of loci to plot, by ranking of regulatory score  
+  seg.vec <- sort(unique(cred.df$SEGNUMBER))
+  annot.vec <- names(cred.df)[9:length(names(cred.df))]
+  out.df <- build_ppa_partition_df(cred.df)
+  format.df <- reformat_partition_df(out.df)
+  reg.df <- build_reg_df(seg.vec,format.df)
   
   PlotID <- paste0(format.df$SEGNUMBER,": ",format.df$Symbol)
   format.df <- cbind(PlotID,format.df)
-  format.df$PlotID <- factor(format.df$PlotID,levels=isletreg.df$PlotID)
-  format.df$SEGNUMBER <- factor(format.df$SEGNUMBER,levels=isletreg.df$SEGNUMBER)
-  #format.df$Symbol <- factor(format.df$Symbol,levels=isletreg.df$Symbol)
-  
+  format.df$PlotID <- factor(format.df$PlotID,levels=reg.df$PlotID)
+  format.df$SEGNUMBER <- factor(format.df$SEGNUMBER,levels=reg.df$SEGNUMBER)
+  #format.df$Symbol <- factor(format.df$Symbol,levels=reg.df$Symbol)
   SNPCOUNT <- c()
   pb <- txtProgressBar(min=0,max=dim(format.df)[1],style=3)
   for (i in 1:dim(format.df)[1]){
@@ -140,28 +227,42 @@ get_format_df <- function(cred.df,lev.vec){
     SNPCOUNT <- c(SNPCOUNT,snpcount)
   }
   format.df$SNPCOUNT <- SNPCOUNT 
-
-  return(format.df)
+  lev.vec <- make_level_vec(format.df)[[1]]
+  col.vec <- make_level_vec(format.df)[[2]]
+  format.df$Annotation <- factor(format.df$Annotation,levels=lev.vec)
+  top.loci <- arrange(reg.df,desc(reg.prop))$PlotID[1:top]
+  format.df <- filter(format.df,PlotID %in% top.loci)
+  return(list(format.df,col.vec))
 }
 
-ppa_plot <- function(format.df){
-  plt <- ggplot(data=format.df,aes(x=PlotID,y=Proportion,fill=Annotation)) + 
+```
+
+
+
+# Plot functions
+
+```{r}
+
+ppa_plot <- function(plot.df,col.vec){
+  plt <- ggplot(data=plot.df,aes(x=PlotID,y=Proportion,fill=Annotation)) + 
             geom_bar(stat="identity",color="black",size=0.2) + 
             scale_y_continuous(breaks=seq(0,1,0.1)) + 
             xlab("Locus") + 
             coord_flip() + 
-            scale_fill_brewer(palette="Spectral") +
+            scale_fill_manual(values=col.vec) + 
+            #scale_fill_brewer(palette="Spectral") +
             ggtitle("Proportion of PPA attributable to each annotation")
   return(plt)
 }
 
-snpcount_plot <- function(format.df){
-  plt <- ggplot(data=format.df,aes(x=PlotID,y=SNPCOUNT,fill=Annotation)) + 
+snpcount_plot <- function(plot.df,col.vec){
+  plt <- ggplot(data=plot.df,aes(x=PlotID,y=SNPCOUNT,fill=Annotation)) + 
             geom_bar(stat="identity",color="black",size=0.2) + 
             scale_y_continuous(breaks=seq(0,5000,200)) + 
             xlab("Locus")+
             coord_flip() + 
-            scale_fill_brewer(palette="Spectral") +
+            scale_fill_manual(values=col.vec) + 
+            #scale_fill_brewer(palette="Spectral") +
             ggtitle("Proportion of SNP count attributable to each annotation")  
   return(plt)
 }
@@ -170,40 +271,52 @@ snpcount_plot <- function(format.df){
 ```
 
 
-99% Credible Sets 
+Save plots
 
 ```{r}
 
-lev.vec <- c("islet_state8","islet_state9","islet_state11","islet_state12",
-             "islet_state14","islet_state5","islet_state2","transcript","intron",
-             "distance_tss_0_5000","coding","other")
+save_plots <- function(roundd,ppthr="99",tiss.vec=c("islet","muscle","liver","adipose")){
+  for (tiss in tiss.vec){
+    print(tiss)
+    pre <- "Round"%&%roundd%&%"."%&%tiss%&%".fgwas_credsets_"%&%ppthr
+    cred.df <- fread(cred.set.dir%&%pre%&%".txt",sep="\t")
+    plot.list <- build_plotting_list(cred.df,top=100)
+    plot.df <- plot.list[[1]]; col.vec <- plot.list[[2]]
+    ppa.plt <- ppa_plot(plot.df,col.vec)     
+    sc.plt <- snpcount_plot(plot.df,col.vec)  
+    ggsave(plot=ppa.plt,filename=plot.dir%&%pre%&%".ppa.png",
+          height=15,width=15)
+    ggsave(plot=sc.plt,filename=plot.dir%&%pre%&%".sc.png",
+          height=15,width=15)
+  }
+}
 
-summary(as.integer(table(cred99.df$SEGNUMBER)))
-form99 <- get_format_df(cred99.df,lev.vec)
-ppa.plt.99 <- ppa_plot(form99)
-sc.plt.99 <- snpcount_plot(form99)
+save_plots(roundd=1,ppthr="99",tiss.vec=c("islet","muscle","liver","adipose"))
 
-ggsave(plot=ppa.plt.99,filename=cred.set.dir%&%"functional-cred-99_ppa.png",
-       height=20,width=20)
-ggsave(plot=sc.plt.99,filename=cred.set.dir%&%"functional-cred-99_sc.png",
-       height=20,width=20)
+reg.annot.vec <- c("9_Active_enhancer_1_Open","10_Active_enhancer_2_Open",
+                   "11_Weak_enhancer_Open",
+                   "1_Active_TSS_Open","2_Weak_TSS_Open","3_Flanking_TSS_Open")
+
+save_plots(roundd=2,ppthr="99",tiss.vec=c("muscle","liver","adipose"))
+
+
 ```
 
 
+# Tissue Matrix 
 
-95% Credible Sets  
 
 ```{r}
 
-summary(as.integer(table(cred95.df$SEGNUMBER)))
-form95 <- get_format_df(cred95.df,lev.vec)
-ppa.plt.95 <- ppa_plot(form95)
-sc.plt.95 <- snpcount_plot(form95)
+pre <- "Round1.islet.fgwas_credsets_99"
+cred.df <- fread(cred.set.dir%&%pre%&%".txt",sep="\t") 
+df <- build_ppa_partition_df(cred.df)
+df$Symbol <- sapply(1:dim(df)[1],function(i){
+  seg <- df$SEGNUMBER[i]
+  symb <- filter(cred.df,SEGNUMBER==seg)$symbol[1]
+})
 
-ggsave(plot=ppa.plt.95,filename=cred.set.dir%&% "functional-cred-95_ppa.png",
-       height=20,width=20)
-ggsave(plot=sc.plt.95,filename=cred.set.dir%&% "functional-cred-95_sc.png",
-       height=20,width=20)
+
 
 ```
 
