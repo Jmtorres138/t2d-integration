@@ -19,7 +19,8 @@ fgwas = "LD_LIBRARY_PATH=/apps/well/gsl/2.2.1-gcc4.9.3/lib /users/mccarthy/jmtor
 home_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
 in_dir=home_dir+"fgwas_input_adipose/round2/"
 out_dir = home_dir + "fgwas_output_adipose/round2/"
-input_file=in_dir+"ukbb_diamante-euro.fgwas.gz" # Optional: Run 01.1 script and use this for abbreviated annotations: in_dir+"fgwas_input_file.renamed.fgwas.gz"
+#input_file=in_dir+"ukbb_diamante-euro.fgwas.gz" # Optional: Run 01.1 script and use this for abbreviated annotations: in_dir+"fgwas_input_file.renamed.fgwas.gz"
+input_file=in_dir+"ukbb_diamante-euro.renamed.fgwas.gz" # Optional: Run 01.1 script and use this for abbreviated annotations: in_dir+"fgwas_input_file.renamed.fgwas.gz"
 job_dir=home_dir+"jobs/"
 log_dir=home_dir+"logs/"
 if os.path.isdir(out_dir)==False:
@@ -458,7 +459,6 @@ def wrapper():
     for f in intermed_files:
         command = ["rm",out_dir+f]
         #sp.check_call(" ".join(command),shell=True)
-
 
 def main():
     wrapper()

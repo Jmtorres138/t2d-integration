@@ -17,8 +17,8 @@ import moniter_rescomp_jobs
 # globals
 fgwas = "LD_LIBRARY_PATH=/apps/well/gsl/2.2.1-gcc4.9.3/lib /users/mccarthy/jmtorres/software/fgwas-0.3.6/bin/fgwas"
 home_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
-in_dir=home_dir+"fgwas_input_islet/"
-out_dir = home_dir + "fgwas_output_islet/"
+in_dir=home_dir+"fgwas_input_muscle/round2/"
+out_dir = home_dir + "fgwas_output_muscle/round2/"
 input_file=in_dir+"ukbb_diamante-euro.fgwas.gz" # Optional: Run 01.1 script and use this for abbreviated annotations: in_dir+"fgwas_input_file.renamed.fgwas.gz"
 job_dir=home_dir+"jobs/"
 log_dir=home_dir+"logs/"
@@ -29,7 +29,7 @@ if os.path.isdir(job_dir)==False:
 if os.path.isdir(log_dir)==False:
     os.mkdir(log_dir)
 start_index = 9 #0-based index of column in fgwas input file where annotations start
-job_prefix = "islet_" # change this if you have concurrent runs of the fgwas_wrapper (for example, running wrapper seperately across tissues)
+job_prefix = "muscle_" # change this if you have concurrent runs of the fgwas_wrapper (for example, running wrapper seperately across tissues)
 
 
 def step1():
@@ -313,7 +313,7 @@ def step5(model_list,best_p,best_llk,best_dropped_mod="NA",previously_dropped=[]
         keep_list = list(model_list)
         dropped_mod = mod
         keep_list.remove(mod)
-        if len(keep_list) <= 9:
+        if len(keep_list) <= 15:
             qc = "short.qc"
         else:
             qc = "long.qc"
@@ -420,8 +420,6 @@ def wrapper():
     dropped_mods = []
     mod,llk,keep,best_llk,status = step5(model_list,best_p,best_llk,previously_dropped=[])
     dropped_mods.append(mod)
-    print ("Dropped Models:")
-    print dropped_mods
     while status == False:
         model_list.remove(mod)
         mod,llk,keep,best_llk,status = step5(model_list,best_p,best_llk,previously_dropped=dropped_mods)

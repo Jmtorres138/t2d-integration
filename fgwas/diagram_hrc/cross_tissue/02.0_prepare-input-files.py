@@ -128,7 +128,7 @@ def build_anno_input(tissue):
     sp.check_call(command3,shell=True)
 
 def main():
-    tiss_list = ["liver","adipose"]
+    tiss_list = ["islet"] # ["muscle"] #"liver","adipose"]
     for tiss in tiss_list:
         print ("\n"+tiss)
         build_anno_input(tiss)

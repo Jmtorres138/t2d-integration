@@ -57,9 +57,8 @@ def subset_to_seg(pre,sig_block_file,out_file):
     fout.close()
     fin.close()
 
-def run_all(roundd,ppthr="0.9"):
+def run_all(roundd,ppthr="0.9",tiss_list=["islet","liver","adipose","muscle"]):
     print "Round: " + str(roundd)
-    tiss_list = ["islet","liver","adipose","muscle"]
     for tiss in tiss_list:
         print tiss
         if roundd == 1:
@@ -74,7 +73,7 @@ def run_all(roundd,ppthr="0.9"):
 
 
 def main():
-    run_all(roundd=1)
-    run_all(roundd=2)
+    #run_all(roundd=1)
+    run_all(roundd=2,tiss_list=["liver","adipose","muscle"])
 
 if (__name__=="__main__"): main()
