@@ -5,7 +5,7 @@ library(GenomicRanges)
 
 save.dir <- "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
 
-command <- paste0("cat ","/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/fgwas_input_liver/round2/intermediate.fgwas.gz"," | zmore")
+command <- paste0("cat ","/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/fgwas_input_islet/round2/intermediate.fgwas.gz"," | zmore")
 df <- fread(command)
 print("Sorting file...")
 chrom <- gsub("chr","",df$CHR)
@@ -31,6 +31,6 @@ dist <- distanceToNearest(x=snp.gr,subject=tss)
 distance_tss <- elementMetadata(dist)$distance
 df$distance_tss <- distance_tss
 
-write.table(df,"/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/fgwas_input_liver/round2/ukbb_diamante-euro.fgwas",sep="	",row.names=F,quote=F)
+write.table(df,"/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/fgwas_input_islet/round2/ukbb_diamante-euro.fgwas",sep="	",row.names=F,quote=F)
 
     
