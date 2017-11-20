@@ -24,7 +24,7 @@ fgwas.out.dir <- fgwas.dir %&% "fgwas_output/"
 best.joint.model.file.prefix <- "best-joint-model"
 plot.dir <- fgwas.dir %&% "plots/"
 
-output.prefix <- "Joint-Partition"
+output.prefix <- "fgwas"
 my.title <- output.prefix
 
 annotation.keyfile <- fgwas.dir %&% "plot-key.csv"# Optional: Specifiy if you have a csv-delimited txt file with annotation names (as they appear in the fgwas input file) on the left column and plotting names on the right column, column names should be Name and PlotName, otherwise set to NULL
