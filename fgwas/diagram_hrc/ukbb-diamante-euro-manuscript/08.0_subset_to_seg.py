@@ -16,10 +16,6 @@ pre = work_dir + "conditional/fgwas_output_files/" + loc_id + "/" + "null_fgwas_
 sig_block_file = work_dir + "conditional/fgwas_output_files/" + loc_id + "/" + "fgwas_blk.txt"
 output_file = work_dir+"conditional/fgwas_output_files/" + loc_id + "/" +"loci_block_snps.bfs.txt.gz"
 
-#pre = work_dir + "fgwas_output/" + "fgwas_run_loci-partition"
-#pre = sys.argv[1]
-#sig_block_file = work_dir + "fgwas_blk-t2d_loci_152.txt"
-#sig_block_file = sys.argv[2]
 # functions
 
 def build_dic():

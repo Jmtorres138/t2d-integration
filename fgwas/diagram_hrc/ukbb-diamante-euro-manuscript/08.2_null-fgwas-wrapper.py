@@ -37,8 +37,9 @@ job_prefix = "null_"
 
 
 
-manual_list = ["87_1", "132_1", "133_1", "86_1"]
-missing_list = ["20_1","86_2","87_2","132_3","132_4","132_5","133_3","133_4","133_5","163_2","164_2"]#,"243","244" ]
+manual_list = ["210_1","210_2","86_1","87_1", "132_1", "132_2", "132_3", "132_4", "132_5",
+                "133_1","133_2","133_3","133_4","133_5","133_6","133_7","133_8","133_9","133_10"]
+missing_list = ["20_1","86_2","87_2","163_2","164_2"]
 
 gwas_bed_dir = "/well/got2d/jason/reference/gwas/diamante-ukbb_hrc/conditioned/gwas_bedfiles/"
 loc_ref_file = "/well/got2d/jason/reference/gwas/diamante-ukbb_hrc/conditioned/list.for.credible.sets.ALL.txt"

@@ -58,7 +58,3 @@ get_loci_blocks <- function(save.prefix){
 
 save.name <- fgwas.output.dir %&% "fgwas_blk"
 loc.blk.df <- get_loci_blocks(save.name)
-
-
-
-#python subset_to_seg.py pre fgwas_blk-t2d_loci_152.txt

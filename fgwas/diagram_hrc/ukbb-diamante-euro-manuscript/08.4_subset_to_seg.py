@@ -15,7 +15,7 @@ work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamant
 #pre = work_dir + "fgwas_output/" + "fgwas_run_loci-partition"
 pre = work_dir + "fgwas_output_files/" + "null_fgwas_run_loci-partition" #sys.argv[1]
 #sig_block_file = work_dir + "fgwas_blk-t2d_loci_152.txt"
-sig_block_file = work_dir + "null_fgwas_blk-t2d_loci_152.txt" # sys.argv[2]
+sig_block_file = work_dir + "null_fgwas_blk-t2d_loci_151.txt" # sys.argv[2]
 # functions
 
 def build_dic():
