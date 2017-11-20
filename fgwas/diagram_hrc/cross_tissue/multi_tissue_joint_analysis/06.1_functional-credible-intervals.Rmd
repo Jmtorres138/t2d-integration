@@ -81,7 +81,7 @@ get_block_info <- function(loc.id){
   } else if (loc.id %in% loc.ref.df$Locus.ID){
     # single
     blk.df <- fread(work.dir %&% "fgwas_blk-t2d_loci_151.txt")
-    bed.df <- fread(work.dir %&% "loci-partition.bed")
+    bed.df <- fread(eur.dir %&% "loci-partition.bed")
   } else {
     stop("Not a valid entry")
   }
