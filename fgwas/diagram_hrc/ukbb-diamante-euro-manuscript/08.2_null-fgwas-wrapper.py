@@ -139,7 +139,7 @@ echo "end time" `date`
 
 def run_all_loci():
     loc_list = []
-    for i in [1,2,3,4,5,6,7,8,9,10]:
+    for i in [1,2,3,4,5,6,7,8]:
         loc_list.append("cond"+str(i))
     loc_list = loc_list + manual_list
     loc_list = loc_list + missing_list
@@ -149,8 +149,8 @@ def run_all_loci():
 
 def run_cred_sets():
     loc_list = []
-    for i in [1,2,3,4,5,6,7,8,9,10]:
-        loc_list.append("cond"+str(i))
+    #for i in [1,2,3,4,5,6,7,8]: # TEMPORARY comment out
+    #    loc_list.append("cond"+str(i)) # TEMPORARY comment out
     loc_list = loc_list + manual_list
     loc_list = loc_list + missing_list
     for loc in loc_list:
