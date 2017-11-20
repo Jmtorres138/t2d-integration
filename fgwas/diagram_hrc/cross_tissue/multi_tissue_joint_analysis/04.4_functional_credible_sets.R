@@ -7,6 +7,7 @@
 library("data.table")
 library("dplyr")
 library("ggplot2")
+library("purrr")
 library(GenomicRanges)
 
 serv.dir <- "/well/got2d/jason/"
@@ -113,6 +114,19 @@ cred95.df <- get_credsets(0.95,segsnps.df)
 cred99.df <- get_credsets(0.99,segsnps.df)
 cred95.df <- annot_refGene(cred95.df,segsnps.df)
 cred99.df <- annot_refGene(cred99.df,segsnps.df)
+
+
+# Rename annotations before writing
+key.df <- fread(work.dir %&% "fgwas_input/annotation_key-file.txt")
+
+name.vec <- names(cred99.df)
+new.names <- as.character(map(name.vec,function(x){new.name <- filter(key.df,Key==x)$Annotation; return(ifelse(length(new.name)==0,x,new.name))}))
+names(cred99.df) <- new.names
+
+name.vec <- names(cred95.df)
+new.names <- as.character(map(name.vec,function(x){new.name <- filter(key.df,Key==x)$Annotation; return(ifelse(length(new.name)==0,x,new.name))}))
+names(cred95.df) <- new.names
+
 write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95.txt",sep="\t",
             quote=FALSE,row.names=F)
 write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99.txt",sep="\t",
