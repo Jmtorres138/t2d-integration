@@ -138,13 +138,13 @@ def run_loc_job(loc_id):
                         "-w", "+".join(annot_list), "-print","-o", loc_out_dir+"fgwas_run_loci-partition"]
     command2 = " ".join(command_list2)
 
-    command_list3 = [rscript, "--vanilla",home_dir+" 05.0_get-cond-block.R",loc_id]
+    command_list3 = [rscript, "--vanilla",home_dir+"05.0_get-cond-block.R",loc_id]
     command3 = " ".join(command_list3)
 
-    command_list4 = [python,home_dir+" 05.0_subset_to_seg.py",loc_id]
+    command_list4 = [python,home_dir+"05.0_subset_to_seg.py",loc_id]
     command4 = " ".join(command_list4)
 
-    command_list5 = [rscript, "--vanilla",home_dir+" 05.0_functional_credible_sets.R",loc_id]
+    command_list5 = [rscript, "--vanilla",home_dir+"05.0_functional_credible_sets.R",loc_id]
     command5 = " ".join(command_list5)
 
     command_list6 = ["rm", loc_out_dir+"fgwas_run_loci-partition.bfs.gz"]
@@ -160,7 +160,7 @@ def run_loc_job(loc_id):
 #$ -V
 echo "start time" `date`
 #%s
-%s
+#%s
 %s
 %s
 #%s

@@ -5,7 +5,6 @@
 args = commandArgs(trailingOnly=TRUE)
 loc.id <- args[1]
 
-
 "%&%" <- function(a,b) paste0(a,b)
 library("data.table")
 library("dplyr")
@@ -14,13 +13,15 @@ library(GenomicRanges)
 
 serv.dir <- "/well/got2d/jason/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
 fgwas.output.dir <- work.dir %&% "conditional/fgwas_output_files/" %&% loc.id %&% "/"
 #pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"
 
-cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
+
+cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/credible_sets/"
 #output_file = work_dir+"conditional/fgwas_input_files/" + loc_id + "/" +"loci_block_snps.bfs.txt.gz"
 
+print("Making credible set file for locus: " %&% loc.id)
 
 
 get_cred <- function(dframe,cname,prob=0.99){ # 99% functional credible sets

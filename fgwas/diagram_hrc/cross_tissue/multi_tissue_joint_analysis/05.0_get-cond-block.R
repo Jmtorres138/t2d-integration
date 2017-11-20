@@ -15,7 +15,7 @@ serv.dir <- "/well/got2d/jason/"
 
 eur.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 
-work.dir <- serv.dir %&% "t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
 
 fgwas.output.dir <- work.dir %&% "conditional/fgwas_output_files/" %&% loc.id %&% "/"
 pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"
