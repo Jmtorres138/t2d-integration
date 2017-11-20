@@ -77,7 +77,7 @@ get_block_info <- function(loc.id){
     bed.df <- fread(bed.dir %&% "loci-partition-cond" %&% cond.num %&% ".bed")
   } else if (loc.id %in% loc.ref.df$Locus.ID){
     # single
-    blk.df <- fread(root.dir %&% "fgwas_blk-t2d_loci_152.txt")
+    blk.df <- fread(root.dir %&% "fgwas_blk-t2d_loci_151.txt")
     bed.df <- fread(root.dir %&% "loci-partition.bed")
   } else {
     stop("Not a valid entry")
