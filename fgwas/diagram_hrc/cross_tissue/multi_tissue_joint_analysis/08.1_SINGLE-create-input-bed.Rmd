@@ -1,5 +1,5 @@
 ---
-title: "05.1"
+title: "08.1"
 author: "Jason Torres"
 date: "November 2017"
 output: pdf_document
@@ -21,7 +21,8 @@ serv.dir <- "/Users/jtorres/FUSE/"
 fgwas.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
 fgwas.in.dir <- fgwas.dir %&% "fgwas_input/"
 fgwas.out.dir <- fgwas.dir %&% "fgwas_output/"
-best.joint.model.file.prefix <- "best-joint-model"
+
+plot.file <- fgwas.dir %&% "plots/fgwas.fgwas_enrich.seperate.txt"
 
 output.dir <- fgwas.dir %&% "conditional/fgwas_input_files/"
 
@@ -33,13 +34,11 @@ output.dir <- fgwas.dir %&% "conditional/fgwas_input_files/"
 ```{r}
 
 bed.df <- fread(fgwas.in.dir %&% "anno_input.bed")
-key.df <- fread(fgwas.in.dir %&% "annotation_key-file.txt")
-best.df <- fread(fgwas.out.dir %&% best.joint.model.file.prefix %&% ".params") %>% filter(parameter!="pi_region") 
-best.df$parameter <- gsub("_ln","",best.df$parameter) %>% gsub("_0_5000","",.)
-best.df$parameter <- as.character(map(best.df$parameter,function(x){filter(key.df,Key==x)$Annotation}))
 
-keep.df <- filter(bed.df, V4 %in% best.df$parameter)
-write.table(x=keep.df,file=output.dir %&% "best_anno_input.bed",sep="\t",row.names=F,col.names=F,quote=F)
+sig.annots <- fread(plot.file)$parameter
+
+keep.df <- filter(bed.df, V4 %in% sig.annots)
+write.table(x=keep.df,file=output.dir %&% "single_anno_input.bed",sep="\t",row.names=F,col.names=F,quote=F)
 
 
 ```
