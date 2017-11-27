@@ -23,8 +23,6 @@ library("GenomicRanges")
 serv.dir <- "/Users/jtorres/Google Drive/Science/" 
 
 work.dir <- serv.dir %&% "Projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
-#fgwas.output.dir <- work.dir %&% "fgwas_output/"
-#cred.set.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/credible_sets/"
 
 cred.dir <- work.dir %&% "tempo_data/"
 write.dir <- work.dir %&% "analysis_files/"
@@ -102,8 +100,11 @@ get_condensed_df <- function(full.df){
     liver_specific <- sum(as.numeric(dplyr::select(sub.df,matches("liver_specific"))))
     muscle_specific <- sum(as.numeric(dplyr::select(sub.df,matches("muscle_specific"))))
     adipose_specific <- sum(as.numeric(dplyr::select(sub.df,matches("adipose_specific"))))
-    tissue_agnostic <- sum(as.numeric(dplyr::select(sub.df,one_of("coding","distance_tss_0_5000","islet_shared_repressed"))))
-    other <- sum(as.numeric(dplyr::select(sub.df,one_of("other"))))
+    #tissue_agnostic <- sum(as.numeric(dplyr::select(sub.df,one_of("coding","distance_tss_0_5000","islet_shared_repressed"))))
+    tissue_agnostic <- sum(as.numeric(dplyr::select(sub.df,
+                                                    one_of("coding","distance_tss_0_5000"))))
+    #other <- sum(as.numeric(dplyr::select(sub.df,one_of("other"))))
+    other <- sum(as.numeric(dplyr::select(sub.df,one_of("other","islet_shared_repressed"))))
     Locus.ID <- sub.df$Locus.ID
     build.df <- data.frame(Locus.ID,islet_specific,islet_shared,liver_specific,muscle_specific,adipose_specific,tissue_agnostic,other)
     out.df <- rbind(out.df,build.df)
@@ -111,6 +112,30 @@ get_condensed_df <- function(full.df){
   out.df$Locus.ID <- as.character(out.df$Locus.ID)
   return(out.df)
 }
+
+
+get_compact_df <- function(full.df){
+  out.df <- c()
+  pb <- txtProgressBar(min=0,max=dim(full.df)[1],style=3)
+  for (i in 1:dim(full.df)[1]){
+    setTxtProgressBar(pb,i)
+    sub.df <- full.df[i,]
+    islet_regulatory <- sum(as.numeric(dplyr::select(sub.df,matches("islet")) %>% dplyr::select(.,-one_of("islet_specific_bivalent_tss","islet_shared_repressed")) )) 
+      
+    islet_bivalent_tss <- sum(as.numeric(dplyr::select(sub.df,one_of("islet_specific_bivalent_tss"))))
+    
+    liver <- sum(as.numeric(dplyr::select(sub.df,matches("liver"))))
+    muscle <- sum(as.numeric(dplyr::select(sub.df,matches("muscle"))))
+    adipose <- sum(as.numeric(dplyr::select(sub.df,matches("adipose"))))
+
+    Locus.ID <- sub.df$Locus.ID
+    build.df <- data.frame(Locus.ID,islet_regulatory,islet_bivalent_tss,liver,muscle,adipose)
+    out.df <- rbind(out.df,build.df)
+  }
+  out.df$Locus.ID <- as.character(out.df$Locus.ID)
+  return(out.df)
+}
+
 
 ```
 
@@ -120,9 +145,10 @@ get_condensed_df <- function(full.df){
 
 full.df <- get_full_df(fcred99.multi.df)
 condensed.df <- get_condensed_df(full.df)
-
+compact.df <- get_compact_df(full.df)
 write.table(x=full.df,file=write.dir%&%"full_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
 write.table(x=condensed.df,file=write.dir%&%"condensed_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
+write.table(x=compact.df,file=write.dir%&%"compact_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
 
 ```
 
