@@ -39,6 +39,7 @@ write_input_bed <- function(tissue){
   fgwas.in.dir <- fgwas.dir %&% "fgwas_input_" %&% tissue %&% "/"
   fgwas.out.dir <- fgwas.dir %&% "fgwas_output_" %&% tissue %&% "/"
   bed.df <- fread(fgwas.in.dir %&% "anno_input.bed")
+  bed.df$V4 <- gsub("/","_",bed.df$V4,fixed=TRUE)
   #key.df <- fread(fgwas.in.dir %&% "annotation_key-file.txt")
   best.df <- fread(fgwas.out.dir %&% best.joint.model.file.prefix %&% ".params") %>% filter(parameter!="pi_region")
   best.df$parameter <- gsub("_ln","",best.df$parameter) %>% gsub("_0_5000","",.)
