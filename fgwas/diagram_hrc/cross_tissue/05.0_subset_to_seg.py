@@ -12,9 +12,11 @@ server_dir = "/well/got2d/jason/"
 work_dir = server_dir + "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
 
 loc_id = sys.argv[1]
-pre = work_dir + "conditional/fgwas_output_files/" + loc_id + "/" + "fgwas_run_loci-partition"
-sig_block_file = work_dir + "conditional/fgwas_output_files/" + loc_id + "/" + "fgwas_blk.txt"
-output_file = work_dir+"conditional/fgwas_output_files/" + loc_id + "/" +"loci_block_snps.bfs.txt.gz"
+tissue = sys.argv[2]
+
+pre = work_dir + "conditional/fgwas_output_files_" + tissue + "/" + loc_id + "/" + "fgwas_run_loci-partition"
+sig_block_file = work_dir + "conditional/fgwas_output_files_" + tissue + "/" + loc_id + "/" + "fgwas_blk.txt"
+output_file = work_dir+"conditional/fgwas_output_files_" + tissue + "/" + loc_id + "/" +"loci_block_snps.bfs.txt.gz"
 
 def build_dic():
     fin = open(sig_block_file,'r')

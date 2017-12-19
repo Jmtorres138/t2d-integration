@@ -9,14 +9,18 @@ import sys,os,gzip
 import subprocess as sp
 
 # globals
+
+gwas_bed_file = sys.argv[1]
+outfile = sys.argv[2]
+tissue = sys.argv[3]
+
 rscript = "/apps/well/R/3.3.1/bin/Rscript"
 bedtools = "/apps/well/bedtools/2.24.0/bedtools" # intersect -a test.bed -b TFBS.bed -wb > mytest.bed"
 cur_dir = "/well/got2d/jason/projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
-input_dir = cur_dir + "conditional/fgwas_input_files/"
+input_dir = cur_dir + "conditional/fgwas_input_files_" + tissue + "/"
 fgwas_head_list = ["CHR","POS0","POS","SNPID","F","Z","PVAL","NCASE","NCONTROL"]
 annot_bed_file = input_dir + "best_anno_input.bed"
-gwas_bed_file = sys.argv[1]
-outfile = sys.argv[2]
+
 ref_name = gwas_bed_file.split("ukbb_diamante-euro.")[1].split(".bed")[0]
 
 print "Be sure to load R module before running script: module load R/3.3.1"
@@ -102,7 +106,7 @@ def process_file(infile,outfile):
     '''
     Will use R to sort, remove duplicate SNPIDS, and determine distance to TSS
     '''
-    r_file = cur_dir+"06.process"+ref_name+".R"
+    r_file = cur_dir+"06.process_"+tissue+"_"+ref_name+".R"
     fout=open(r_file,'w')
     script='''
 library("data.table")
