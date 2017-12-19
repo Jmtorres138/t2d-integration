@@ -3,6 +3,7 @@
 
 args = commandArgs(trailingOnly=TRUE)
 loc.id <- args[1]
+tissue <- args[2]
 
 "%&%" <- function(a,b) paste0(a,b)
 
@@ -17,7 +18,7 @@ eur.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamant
 
 work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
 
-fgwas.output.dir <- work.dir %&% "conditional/fgwas_output_files/" %&% loc.id %&% "/"
+fgwas.output.dir <- work.dir %&% "conditional/fgwas_output_files_" %&% tissue %&% "/" %&% loc.id %&% "/"
 pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"
 
 region.file <- eur.dir %&% "region_files/" %&% "t2d-loci-regions-" %&% loc.id %&% ".txt"
