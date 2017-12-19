@@ -25,15 +25,11 @@ library("GenomicRanges")
 
 serv.dir <- "/Users/jtorres/FUSE/"
 
-work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
-fgwas.output.dir <- work.dir %&% "fgwas_output/"
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
 eur.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 
 
-
-cred.set.dir <- work.dir %&% "credible_sets/"
-
-pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"  
+ 
 
 ```
 
@@ -41,7 +37,12 @@ pre <- fgwas.output.dir %&% "fgwas_run_loci-partition"
 ```{r}
 
 
-get_loci_blocks <- function(save.prefix){
+get_loci_blocks <- function(tissue){
+  cred.set.dir <- work.dir %&% "credible_sets/" %&% tissue %&% "/"
+  fgwas.output.dir <- work.dir %&% "fgwas_output_" %&% tissue %&% "/"
+  pre <- fgwas.output.dir %&% "SINGLE_fgwas_run_loci-partition" 
+  save.prefix <- fgwas.output.dir %&% "fgwas_blk-t2d_loci_151"
+
   loc.df <- fread(eur.dir%&%"t2d-loci-regions.txt")
   names(loc.df) <- c("CHR","Start","End")
   loc.gr <- GRanges(seqnames=loc.df$CHR,IRanges(loc.df$Start,loc.df$End))
@@ -66,9 +67,9 @@ get_loci_blocks <- function(save.prefix){
   names(sig.blk.df) <- c("SEGNUMBER","CHR","blk.start","blk.end","blk.PPA","blk.NSNP")
 
 
-  write.table(x=sig.blk.df,file = work.dir %&% save.prefix %&%".txt",
+  write.table(x=sig.blk.df,file = save.prefix %&%".txt",
               sep="\t",quote=FALSE,row.names=FALSE)
-  saveRDS(object=sig.blk.df,file=work.dir%&%save.prefix%&%".df.RDS")
+  saveRDS(object=sig.blk.df,file= save.prefix%&%".df.RDS")
   print("Proportion of blocks with cummulative PPA >= 0.9: " %&%
           (dim(filter(sig.blk.df,blk.PPA>=0.9))[1]/(dim(sig.blk.df)[1])))
   print("Proportion of blocks with cummulative PPA >= 0.8: " %&%
@@ -78,13 +79,24 @@ get_loci_blocks <- function(save.prefix){
   return(sig.blk.df)
 }
 
-loc.blk.df <- get_loci_blocks("fgwas_blk-t2d_loci_151")
+```
+
+
+
+```{r}
+
+tiss.vec <- c("adipose","muscle","liver","islet")
+for (tiss in tiss.vec){
+  print(tiss)
+  loc.blk.df <- get_loci_blocks(tiss)
+}
+
 
 ```
 
 
-# Subset fgwas SNP output file to SNP in significant blocks
 
+# Subset fgwas SNP output file to SNPs in significant blocks
 
 ```{bash}
 
