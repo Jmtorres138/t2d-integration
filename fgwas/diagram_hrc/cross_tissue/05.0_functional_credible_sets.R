@@ -109,8 +109,8 @@ annot_refGene <- function(cred.df,segsnps.df){
 segsnps.df <- fread("cat " %&% fgwas.output.dir  %&% "loci_block_snps.bfs.txt.gz" %&% " | zmore")
 cred95.df <- get_credsets(0.95,segsnps.df)
 cred99.df <- get_credsets(0.99,segsnps.df)
-cred95.df <- annot_refGene(cred95.df,segsnps.df)
-cred99.df <- annot_refGene(cred99.df,segsnps.df)
+#cred95.df <- annot_refGene(cred95.df,segsnps.df)
+#cred99.df <- annot_refGene(cred99.df,segsnps.df)
 write.table(x=cred95.df,file=cred.set.dir%&%"fgwas_credsets_95-" %&% loc.id %&% ".txt",sep="\t",
             quote=FALSE,row.names=F)
 write.table(x=cred99.df,file=cred.set.dir%&%"fgwas_credsets_99-" %&% loc.id %&% ".txt",sep="\t",

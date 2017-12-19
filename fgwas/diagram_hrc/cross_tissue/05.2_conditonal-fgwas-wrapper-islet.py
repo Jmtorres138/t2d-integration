@@ -155,7 +155,7 @@ def run_loc_job(loc_id):
 #$ -o %s%s.out
 #$ -V
 echo "start time" `date`
-#%s
+%s
 %s
 %s
 
@@ -195,8 +195,8 @@ def run_cred_sets():
 def main():
 
     #build_all_inputs()
-    run_all_loci()
-    #run_cred_sets()
+    #run_all_loci()
+    run_cred_sets()
 
 
 if (__name__=="__main__"): main()
