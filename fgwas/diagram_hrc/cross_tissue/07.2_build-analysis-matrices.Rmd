@@ -19,15 +19,13 @@ library("data.table")
 library("tidyverse")
 library("GenomicRanges")
 
-#serv.dir <- "/Users/jtorres/FUSE/" # November Server SHUTDOWN!!! 
-serv.dir <- "/Users/jtorres/Google Drive/Science/" 
+serv.dir <- "/Users/jtorres/FUSE/" 
 
-work.dir <- serv.dir %&% "Projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
-
-cred.dir <- work.dir %&% "tempo_data/"
+work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/"
+cred.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/credible_sets/"
 write.dir <- work.dir %&% "analysis_files/"
 
-
+ignore.names <- c("Locus.ID","SEGNUMBER","SNPID","CHR","POS","logBF","Z","PPA","symbol")
 
 ```
 
@@ -35,27 +33,15 @@ write.dir <- work.dir %&% "analysis_files/"
 Build credible set dataframes 
 
 
-```{r}
-
-block99.multi.df <- fread(cred.dir %&% "multi_results/" %&% "results_blocks.txt",sep="\t")
-fcred99.multi.df <- fread(cred.dir %&% "multi_results/" %&% "results_func-cred-sets.txt",sep="\t")
-
-block99.isl.df <- fread(cred.dir %&% "islet_results/" %&% "results_blocks.txt",sep="\t")
-fcred99.isl.df <- fread(cred.dir %&% "islet_results/" %&% "results_func-cred-sets.txt",sep="\t")
-
-```
-
-
 # Functions 
 
-
-Get annotation matrix 
+Get ppa annotation matrix 
 
 ```{r}
 
 get_full_df <- function(cred.df){
-   loc.vec <- unique(cred.df$Locus.ID)
-  annot.vec <- names(cred.df)[10:length(names(cred.df))]
+  loc.vec <- unique(cred.df$Locus.ID)
+  annot.vec <- names(cred.df)[!(names(cred.df) %in% ignore.names)]
   
   out.df <- c() 
   print(length(loc.vec))
@@ -68,8 +54,10 @@ get_full_df <- function(cred.df){
     myrow <- c(loc)
     for (annot in annot.vec){
       index <- match(annot,names(temp.df))
-      sub.df <- temp.df[,c(1:9,index),]
-      annotppa <- sum(sub.df$PPA[as.logical(sub.df[,10])]) / cumppa
+      #sub.df <- temp.df[,c(1:9,index),]
+      sub.df <- temp.df %>% dplyr::select(.,one_of(ignore.names,annot))
+      n <- length(names(sub.df))
+      annotppa <- sum(sub.df$PPA[as.logical(sub.df[,n])]) / cumppa
       myrow <- c(myrow,annotppa)
     }
     other <- (1-sum(unique(as.numeric(myrow[2:(length(myrow))]))))
@@ -89,66 +77,90 @@ get_full_df <- function(cred.df){
   return(out.df)
 }
 
-get_condensed_df <- function(full.df){
-  out.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(full.df)[1],style=3)
-  for (i in 1:dim(full.df)[1]){
-    setTxtProgressBar(pb,i)
-    sub.df <- full.df[i,]
-    islet_specific <- sum(as.numeric(dplyr::select(sub.df,matches("islet_specific"))))
-    islet_shared <- sum(as.numeric(dplyr::select(sub.df,matches("islet_shared"))  %>% dplyr::select(.,-matches("islet_shared_repressed"))))
-    liver_specific <- sum(as.numeric(dplyr::select(sub.df,matches("liver_specific"))))
-    muscle_specific <- sum(as.numeric(dplyr::select(sub.df,matches("muscle_specific"))))
-    adipose_specific <- sum(as.numeric(dplyr::select(sub.df,matches("adipose_specific"))))
-    #tissue_agnostic <- sum(as.numeric(dplyr::select(sub.df,one_of("coding","distance_tss_0_5000","islet_shared_repressed"))))
-    tissue_agnostic <- sum(as.numeric(dplyr::select(sub.df,
-                                                    one_of("coding","distance_tss_0_5000"))))
-    #other <- sum(as.numeric(dplyr::select(sub.df,one_of("other"))))
-    other <- sum(as.numeric(dplyr::select(sub.df,one_of("other","islet_shared_repressed"))))
-    Locus.ID <- sub.df$Locus.ID
-    build.df <- data.frame(Locus.ID,islet_specific,islet_shared,liver_specific,muscle_specific,adipose_specific,tissue_agnostic,other)
-    out.df <- rbind(out.df,build.df)
-  }
-  out.df$Locus.ID <- as.character(out.df$Locus.ID)
-  return(out.df)
+build_ppa_matrix <- function(tissue){
+  block99.df <- fread(cred.dir %&% tissue %&% "/" %&% "results_blocks.txt",sep="\t")
+  fcred99.df <- fread(cred.dir %&% tissue %&% "/" %&% "results_func-cred-sets.txt",sep="\t")
+  full.df <- get_full_df(fcred99.df)
+  write.table(x=full.df,file=write.dir%&%tissue %&% "_best-joint_ppa-prop.txt",
+              sep="\t",quote=FALSE,row.names=FALSE)
 }
 
+tiss.vec <- c("islet","muscle","liver","adipose")
 
-get_compact_df <- function(full.df){
-  out.df <- c()
-  pb <- txtProgressBar(min=0,max=dim(full.df)[1],style=3)
-  for (i in 1:dim(full.df)[1]){
-    setTxtProgressBar(pb,i)
-    sub.df <- full.df[i,]
-    islet_regulatory <- sum(as.numeric(dplyr::select(sub.df,matches("islet")) %>% dplyr::select(.,-one_of("islet_specific_bivalent_tss","islet_shared_repressed")) )) 
-      
-    islet_bivalent_tss <- sum(as.numeric(dplyr::select(sub.df,one_of("islet_specific_bivalent_tss"))))
-    
-    liver <- sum(as.numeric(dplyr::select(sub.df,matches("liver"))))
-    muscle <- sum(as.numeric(dplyr::select(sub.df,matches("muscle"))))
-    adipose <- sum(as.numeric(dplyr::select(sub.df,matches("adipose"))))
-
-    Locus.ID <- sub.df$Locus.ID
-    build.df <- data.frame(Locus.ID,islet_regulatory,islet_bivalent_tss,liver,muscle,adipose)
-    out.df <- rbind(out.df,build.df)
-  }
-  out.df$Locus.ID <- as.character(out.df$Locus.ID)
-  return(out.df)
+for (tiss in tiss.vec){
+  print(tiss)
+  build_ppa_matrix(tiss)
 }
 
 
 ```
 
 
+
+# Build master analysis data frame for tissue-classification project
 
 ```{r}
 
-full.df <- get_full_df(fcred99.multi.df)
-condensed.df <- get_condensed_df(full.df)
-compact.df <- get_compact_df(full.df)
-write.table(x=full.df,file=write.dir%&%"full_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
-write.table(x=condensed.df,file=write.dir%&%"condensed_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
-write.table(x=compact.df,file=write.dir%&%"compact_best-joint_ppa-prop.txt",sep="\t",quote=FALSE,row.names=FALSE)
+null.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/null/credible_sets/"
+nullblock.df <- fread(null.dir %&% "null_results_blocks.txt",sep="\t")
+nullfcred.df <- fread(null.dir %&% "null_results_func-cred-sets.txt",sep="\t")
+
+build_classify_df <- function(tissue){
+  block99.df <- fread(cred.dir %&% tissue %&% "/" %&% "results_blocks.txt",sep="\t")
+  fcred99.df <- fread(cred.dir %&% tissue %&% "/" %&% "results_func-cred-sets.txt",sep="\t")
+  loc.vec <- unique(fcred99.df$Locus.ID)
+  block99.df <- filter(block99.df,Locus.ID%in%loc.vec)
+  out.df <- block99.df %>% dplyr::select(.,one_of("Locus.ID","loc.pos","CHR","refseq"))
+  out.df$null.num <- map(out.df$Locus.ID,function(id){
+    filter(nullfcred.df,Locus.ID==id)$PPA %>% length(.)
+  }) %>% as.numeric(.)
+  out.df$null.len <- map(out.df$Locus.ID,function(id){
+    filter(nullblock.df,Locus.ID==id)$fcred.len 
+  }) %>% as.numeric(.)
+  out.df$maxpp <- map(out.df$Locus.ID,function(id){
+    filter(fcred99.df,Locus.ID==id)$PPA %>% max(.)
+  }) %>% as.numeric(.)
+  out.df$maxppDelta <- map(out.df$Locus.ID,function(id){
+    m0 <- filter(nullfcred.df,Locus.ID==id)$PPA %>% max(.)
+    m1 <- filter(fcred99.df,Locus.ID==id)$PPA %>% max(.)
+    return((m1-m0)/m0)
+  }) %>% as.numeric(.)
+  out.df$numDelta <- map(out.df$Locus.ID,function(id){
+    m0 <- filter(nullfcred.df,Locus.ID==id)$PPA %>% length(.)
+    m1 <- filter(fcred99.df,Locus.ID==id)$PPA %>% length(.)
+    return((m1-m0)/m0)
+  }) %>% as.numeric(.)
+  out.df$lenDelta <- map(out.df$Locus.ID,function(id){
+    m0 <- filter(nullblock.df,Locus.ID==id)$fcred.len 
+    m1 <- filter(block99.df,Locus.ID==id)$fcred.len 
+    if (m0!=0){
+      return((m1-m0)/m0)
+    } else{
+      return(0)
+    }
+  }) %>% as.numeric(.)
+  names(out.df)[(length(names(out.df))-3):length(names(out.df))] <- tissue %&% "." %&% 
+    names(out.df)[(length(names(out.df))-3):length(names(out.df))] 
+  return(out.df)
+}
+
+build_classify_df_full <- function(tiss.vec=c("islet","muscle","liver","adipose")){
+  print(tiss.vec[1])
+  out.df <- build_classify_df(tiss.vec[1])
+  for (tiss in tiss.vec[2:length(tiss.vec)]){
+    print(tiss)
+    build.df <- build_classify_df(tiss) %>% dplyr::select(.,contains(tiss))
+    out.df <- cbind(out.df,build.df)
+  }
+  return(out.df)
+}
+
+classify.df <- build_classify_df_full()
+write.table(x=classify.df,file=write.dir%&%"loci_profile.txt",
+            sep="\t",quote=FALSE,row.names=FALSE)
 
 ```
+
+
+
 
