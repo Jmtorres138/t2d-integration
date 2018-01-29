@@ -27,7 +27,7 @@ plot.dir <- fgwas.dir %&% "plots/"
 output.prefix <- "fgwas"
 my.title <- output.prefix
 
-annotation.keyfile <- fgwas.dir %&% "plot-key.csv"# Optional: Specifiy if you have a csv-delimited txt file with annotation names (as they appear in the fgwas input file) on the left column and plotting names on the right column, column names should be Name and PlotName, otherwise set to NULL
+annotation.keyfile <- plot.dir %&% "plot-key.csv"# Optional: Specifiy if you have a csv-delimited txt file with annotation names (as they appear in the fgwas input file) on the left column and plotting names on the right column, column names should be Name and PlotName, otherwise set to NULL
 if (!is.null(annotation.keyfile)){
   key.df <- fread(annotation.keyfile,sep=",",sep2=" ")
 }
