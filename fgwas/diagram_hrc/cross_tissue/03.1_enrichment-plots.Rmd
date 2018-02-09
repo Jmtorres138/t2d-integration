@@ -221,3 +221,108 @@ for (tiss in tiss.vec){
 
 
 ```
+
+
+
+# Tissue Comparator plots 
+
+
+```{r}
+
+
+build_param_all_df <- function(fgwas.out.dir,name.vec=NULL){
+  files <- list.files(fgwas.out.dir)
+  param.files <- files[grepl(".params",files,fixed=TRUE)]
+  param.files <- param.files[!grepl("+",param.files,fixed=TRUE)]
+  param.files <- param.files[!grepl("drop",param.files,fixed=TRUE)]  
+  param.files <- param.files[!grepl("best-joint-model",param.files,fixed=TRUE)]  
+  param.files <- param.files[!grepl("SINGLE_fgwas_run_loci-partition",param.files,fixed=TRUE)]  
+
+  out.df <- c()
+  for (f in param.files){
+    stack.df <- annot_process(fgwas.out.dir%&%f)
+    out.df <- rbind(out.df,stack.df)
+  }
+  out.df <- filter(out.df,parameter!="pi_region")
+  out.df <- arrange(out.df,desc(estimate))
+  enriched <- filter(out.df, CI_lo>0,estimate>0,CI_hi>0)
+  depleted <- filter(out.df, CI_lo<0,estimate<0,CI_hi<0)
+  print("There are " %&% dim(out.df)[1] %&% " annotations")
+  print("There are " %&% dim(enriched)[1] %&% " annotations that are marginally ENRICHED")
+  print("There are " %&% dim(depleted)[1] %&% " annotations that are marginally DEPLETED")
+  #out.df <- rbind(enriched,depleted)
+  #if (!is.null(name.vec)){
+  #  out.df$parameter<-name.vec
+  #}
+  if (!is.null(annotation.keyfile)){
+    out.df <- update_names(out.df,key.df)
+  }
+  return(out.df)
+}
+
+
+get_tiss_df <- function(tissue,round=1){
+  # Seperate  
+  if (round==1){
+    fgwas.out.dir <- fgwas.dir %&% "fgwas_output_" %&% tissue %&% "/"
+    my.title <- tissue %&% ": " %&% "ChIP-seq only"
+  } else if (round==2){
+    fgwas.out.dir <- fgwas.dir %&% "fgwas_output_" %&% tissue %&% "/round2/"
+    my.title <- tissue %&% ": " %&% "ChIP-seq + ATAC"
+    if (key==TRUE){
+      fgwas.in.dir <- fgwas.dir %&% "fgwas_input_" %&% tissue %&% "/round2/"
+      key.df <- fread(fgwas.in.dir%&%"annotation_key-file.txt")
+  }
+  } else{
+    stop("Must be round 1 or 2")
+  }
+  param.sing.df <- build_param_all_df(fgwas.out.dir)  
+  return(param.sing.df)
+}
+
+tissue_compare_plots <- function(round=1){
+  islet.df <- get_tiss_df("islet") %>% filter(.,grepl("Active_enhancer",parameter)); islet.df$parameter <- "islet_" %&% islet.df$parameter
+  liver.df <- get_tiss_df("liver") %>% filter(.,grepl("Active_enhancer",parameter)); liver.df$parameter <- "liver_" %&% liver.df$parameter
+  muscle.df <- get_tiss_df("muscle") %>% filter(.,grepl("Active_enhancer",parameter)); muscle.df$parameter <- "muscle_" %&% muscle.df$parameter
+  adipose.df <- get_tiss_df("adipose") %>% filter(.,grepl("Active_enhancer",parameter)); adipose.df$parameter <- "adipose_" %&% adipose.df$parameter
+  enhancer.df <- rbind(islet.df,liver.df,muscle.df,adipose.df)
+  enh.plt <- an_plot(enhancer.df,mytitl="Enhancers"%&%": Seperate Analysis",
+                   mylow=-5,myhigh=5,interval=1)
+  islet.df <- get_tiss_df("islet") %>% filter(.,grepl("Weak_enhancer",parameter)); islet.df$parameter <- "islet_" %&% islet.df$parameter
+  liver.df <- get_tiss_df("liver") %>% filter(.,grepl("Weak_enhancer",parameter)); liver.df$parameter <- "liver_" %&% liver.df$parameter
+  muscle.df <- get_tiss_df("muscle") %>% filter(.,grepl("Weak_enhancer",parameter)); muscle.df$parameter <- "muscle_" %&% muscle.df$parameter
+  adipose.df <- get_tiss_df("adipose") %>% filter(.,grepl("Weak_enhancer",parameter)); adipose.df$parameter <- "adipose_" %&% adipose.df$parameter
+  enhancer.df <- rbind(islet.df,liver.df,muscle.df,adipose.df)
+  enhweak.plt <- an_plot(enhancer.df,mytitl="Weak Enhancers"%&%": Seperate Analysis",
+                   mylow=-5,myhigh=5,interval=1)
+  islet.df <- get_tiss_df("islet") %>% filter(.,grepl("Active_TSS",parameter)); islet.df$parameter <- "islet_" %&% islet.df$parameter
+  liver.df <- get_tiss_df("liver") %>% filter(.,grepl("Active_TSS",parameter)); liver.df$parameter <- "liver_" %&% liver.df$parameter
+  muscle.df <- get_tiss_df("muscle") %>% filter(.,grepl("Active_TSS",parameter)); muscle.df$parameter <- "muscle_" %&% muscle.df$parameter
+  adipose.df <- get_tiss_df("adipose") %>% filter(.,grepl("Active_TSS",parameter)); adipose.df$parameter <- "adipose_" %&% adipose.df$parameter
+  tss.df <- rbind(islet.df,liver.df,muscle.df,adipose.df)
+  tss.plt <- an_plot(tss.df,mytitl="TSS"%&%": Seperate Analysis",
+                   mylow=-5,myhigh=5,interval=1) 
+  islet.df <- get_tiss_df("islet") %>% filter(.,grepl("Weak_TSS",parameter)); islet.df$parameter <- "islet_" %&% islet.df$parameter
+  liver.df <- get_tiss_df("liver") %>% filter(.,grepl("Weak_TSS",parameter)); liver.df$parameter <- "liver_" %&% liver.df$parameter
+  muscle.df <- get_tiss_df("muscle") %>% filter(.,grepl("Weak_TSS",parameter)); muscle.df$parameter <- "muscle_" %&% muscle.df$parameter
+  adipose.df <- get_tiss_df("adipose") %>% filter(.,grepl("Weak_TSS",parameter)); adipose.df$parameter <- "adipose_" %&% adipose.df$parameter
+  tssweak.df <- rbind(islet.df,liver.df,muscle.df,adipose.df)
+  tssweak.plt <- an_plot(tssweak.df,mytitl="Weak TSS"%&%": Seperate Analysis",
+                   mylow=-5,myhigh=5,interval=1)   
+  grid.arrange(enh.plt,tss.plt,enhweak.plt,tssweak.plt,ncol=2,nrow=2)
+  c(fread(fgwas.dir %&% "fgwas_output_" %&% "islet" %&% "/" %&% "10_Active_enhancer_2.llk")[1,]$V2,
+    fread(fgwas.dir %&% "fgwas_output_" %&% "liver" %&% "/" %&% "10_Active_enhancer_2.llk")[1,]$V2,
+    fread(fgwas.dir %&% "fgwas_output_" %&% "muscle" %&% "/" %&% "10_Active_enhancer_2.llk")[1,]$V2,
+    fread(fgwas.dir %&% "fgwas_output_" %&% "adipose" %&% "/" %&% "10_Active_enhancer_2.llk")[1,]$V2)
+  c(fread(fgwas.dir %&% "fgwas_output_" %&% "islet" %&% "/" %&% "1_Active_TSS.llk")[1,]$V2,
+    fread(fgwas.dir %&% "fgwas_output_" %&% "liver" %&% "/" %&% "1_Active_TSS.llk")[1,]$V2,
+    fread(fgwas.dir %&% "fgwas_output_" %&% "muscle" %&% "/" %&% "1_Active_TSS.llk")[1,]$V2,
+    fread(fgwas.dir %&% "fgwas_output_" %&% "adipose" %&% "/" %&% "1_Active_TSS.llk")[1,]$V2)
+
+
+}
+
+```
+
+
+
