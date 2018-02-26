@@ -30,6 +30,7 @@ gwas.dir <- serv.dir %&% "reference/gwas/diamante-ukbb_hrc/"
 eur.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/"
 
 work.dir <- serv.dir %&% "projects/t2d-integration/fgwas/diagram_hrc/cross_tissue/multi_tissue_joint_analysis/"
+plot.dir <- work.dir %&% "plots/"
 
 cond.out.dir <- work.dir %&% "conditional/fgwas_output_files/"
 
@@ -39,6 +40,7 @@ bed.dir <- eur.dir %&% "partition_bedfiles/"
 manual.vec <- c("86_1","87_1","132_1","132_2","132_3","132_4","132_5",
   "133_1","133_2","133_3","133_4","133_5","133_6","133_7","133_8","133_9","133_10","210_1","210_2")
 missing.vec = c("20_1","86_2","87_2","163_2","164_2")
+
 
 
 ```
@@ -241,7 +243,7 @@ write.table(x=max.df,file=plot.dir %&% "topPPA.txt",sep="\t",
 library("gridExtra")
 library("grid")
 
-plot.dir <- "/Users/jtorres/Google Drive/Science/Projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/table_plots/"
+#plot.dir <- "/Users/jtorres/Google Drive/Science/Projects/t2d-integration/fgwas/diagram_hrc/ukbb-diamante-euro-manuscript/table_plots/"
 
 tab.df <- dplyr::select(block.df,one_of("CHR","loc.pos","Locus.ID","refseq","fcred.start","fcred.end","fcred.num"))
 names(tab.df) <- c("Chrom","Lead SNP position","Locus ID", "RefSeq",
